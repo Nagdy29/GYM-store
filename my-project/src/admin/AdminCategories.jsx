@@ -6,6 +6,7 @@ import {
 } from "react";
 
 import {
+  CheckCircle2,
   FolderOpen,
   Image as ImageIcon,
   Pencil,
@@ -23,24 +24,29 @@ import {
   updateCategoryInFirebase,
 } from "../firebase/categories";
 
+const EMPTY_FORM = {
+  name: "",
+  slug: "",
+  description: "",
+  image: "",
+};
+
 function AdminCategories() {
   const [categories, setCategories] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
 
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
   const [search, setSearch] = useState("");
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
   const [form, setForm] = useState({
-    name: "",
-    slug: "",
-    description: "",
-    image: "",
+    ...EMPTY_FORM,
   });
 
   const loadCategories = useCallback(async () => {
@@ -48,8 +54,7 @@ function AdminCategories() {
       setLoading(true);
       setError("");
 
-      const data =
-        await getCategoriesFromFirebase();
+      const data = await getCategoriesFromFirebase();
 
       setCategories(
         Array.isArray(data) ? data : []
@@ -61,7 +66,8 @@ function AdminCategories() {
       );
 
       setError(
-        "حصلت مشكلة أثناء تحميل الأقسام."
+        err?.message ||
+          "حصلت مشكلة أثناء تحميل الأقسام من Firebase."
       );
     } finally {
       setLoading(false);
@@ -73,8 +79,9 @@ function AdminCategories() {
   }, [loadCategories]);
 
   const filteredCategories = useMemo(() => {
-    const value =
-      search.trim().toLowerCase();
+    const value = search
+      .trim()
+      .toLowerCase();
 
     if (!value) {
       return categories;
@@ -103,10 +110,7 @@ function AdminCategories() {
 
   const resetForm = () => {
     setForm({
-      name: "",
-      slug: "",
-      description: "",
-      image: "",
+      ...EMPTY_FORM,
     });
 
     setEditingId(null);
@@ -115,14 +119,12 @@ function AdminCategories() {
 
   const openAddForm = () => {
     setForm({
-      name: "",
-      slug: "",
-      description: "",
-      image: "",
+      ...EMPTY_FORM,
     });
 
     setEditingId(null);
     setError("");
+    setSuccess("");
     setShowForm(true);
   };
 
@@ -130,19 +132,18 @@ function AdminCategories() {
     setForm({
       name: category.name || "",
       slug: category.slug || "",
-      description:
-        category.description || "",
+      description: category.description || "",
       image: category.image || "",
     });
 
     setEditingId(category.id);
     setError("");
+    setSuccess("");
     setShowForm(true);
   };
 
   const handleChange = (event) => {
-    const { name, value } =
-      event.target;
+    const { name, value } = event.target;
 
     setForm((current) => ({
       ...current,
@@ -161,18 +162,6 @@ function AdminCategories() {
       );
   };
 
-  const handleNameChange = (event) => {
-    const value = event.target.value;
-
-    setForm((current) => ({
-      ...current,
-      name: value,
-      slug:
-        current.slug ||
-        createSlug(value),
-    }));
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -186,6 +175,7 @@ function AdminCategories() {
     try {
       setSaving(true);
       setError("");
+      setSuccess("");
 
       const categoryData = {
         name,
@@ -198,33 +188,30 @@ function AdminCategories() {
       };
 
       if (editingId) {
-        const updated =
-          await updateCategoryInFirebase(
-            editingId,
-            categoryData
-          );
-
-        setCategories((current) =>
-          current.map((category) =>
-            category.id === editingId
-              ? {
-                  ...category,
-                  ...updated,
-                }
-              : category
-          )
+        await updateCategoryInFirebase(
+          editingId,
+          categoryData
         );
       } else {
-        const created =
-          await addCategoryToFirebase(
-            categoryData
-          );
-
-        setCategories((current) => [
-          ...current,
-          created,
-        ]);
+        await addCategoryToFirebase(
+          categoryData
+        );
       }
+
+      const freshCategories =
+        await getCategoriesFromFirebase();
+
+      setCategories(
+        Array.isArray(freshCategories)
+          ? freshCategories
+          : []
+      );
+
+      setSuccess(
+        editingId
+          ? `تم تحديث قسم "${name}" بنجاح ✅`
+          : `تم إضافة قسم "${name}" بنجاح ✅`
+      );
 
       resetForm();
     } catch (err) {
@@ -254,6 +241,7 @@ function AdminCategories() {
     try {
       setDeletingId(category.id);
       setError("");
+      setSuccess("");
 
       await deleteCategoryFromFirebase(
         category.id
@@ -264,6 +252,10 @@ function AdminCategories() {
           (item) =>
             item.id !== category.id
         )
+      );
+
+      setSuccess(
+        `تم حذف قسم "${category.name}" بنجاح ✅`
       );
 
       if (editingId === category.id) {
@@ -294,21 +286,19 @@ function AdminCategories() {
       <div className="border-b border-zinc-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-[#39ff14]">
-                  <FolderOpen size={23} />
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-[#39ff14]">
+                <FolderOpen size={23} />
+              </div>
 
-                <div>
-                  <h1 className="text-2xl font-black text-zinc-900">
-                    الأقسام
-                  </h1>
+              <div>
+                <h1 className="text-2xl font-black text-zinc-900">
+                  الأقسام
+                </h1>
 
-                  <p className="mt-1 text-sm text-zinc-500">
-                    إدارة أقسام المتجر من Firebase
-                  </p>
-                </div>
+                <p className="mt-1 text-sm text-zinc-500">
+                  الأقسام دي بتتجاب من Firebase مباشرة
+                </p>
               </div>
             </div>
 
@@ -316,23 +306,29 @@ function AdminCategories() {
               <button
                 type="button"
                 onClick={loadCategories}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-5 py-3 text-sm font-black text-zinc-800 transition-all hover:border-black hover:bg-zinc-100"
+                disabled={loading}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-5 py-3 text-sm font-black transition hover:border-black hover:bg-zinc-100 disabled:opacity-50"
               >
-                <RefreshCw size={17} />
-
+                <RefreshCw
+                  size={17}
+                  className={
+                    loading
+                      ? "animate-spin"
+                      : ""
+                  }
+                />
                 تحديث
               </button>
 
               <button
                 type="button"
                 onClick={openAddForm}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-5 py-3 text-sm font-black text-white transition-all hover:-translate-y-0.5 hover:bg-zinc-800"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-zinc-800"
               >
                 <Plus
                   size={18}
                   className="text-[#39ff14]"
                 />
-
                 إضافة قسم
               </button>
             </div>
@@ -340,16 +336,44 @@ function AdminCategories() {
         </div>
       </div>
 
-      {/* CONTENT */}
-
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* SUCCESS */}
+
+        {success && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-green-200 bg-green-50 p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#39ff14] text-black">
+                <CheckCircle2 size={18} />
+              </div>
+
+              <p className="text-sm font-black text-green-800">
+                {success}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSuccess("")}
+              className="text-green-600"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
         {/* ERROR */}
 
         {error && (
-          <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-red-200 bg-red-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-bold text-red-700">
-              {error}
-            </p>
+          <div className="mb-6 flex items-start justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 p-5">
+            <div>
+              <p className="text-sm font-black text-red-700">
+                حصلت مشكلة
+              </p>
+
+              <p className="mt-1 text-xs leading-6 text-red-600">
+                {error}
+              </p>
+            </div>
 
             <button
               type="button"
@@ -395,15 +419,15 @@ function AdminCategories() {
                 </h2>
 
                 <p className="mt-1 text-xs text-zinc-500">
-                  البيانات دي هتتخزن مباشرة في
-                  Firestore.
+                  غيّر اسم القسم أو أي بيانات تخصه.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={resetForm}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500 transition hover:bg-black hover:text-white"
+                disabled={saving}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500 transition hover:bg-black hover:text-white disabled:opacity-50"
               >
                 <X size={18} />
               </button>
@@ -414,40 +438,39 @@ function AdminCategories() {
               className="grid gap-5 p-6 md:grid-cols-2"
             >
               <div>
-                <label className="mb-2 block text-sm font-black text-zinc-800">
+                <label className="mb-2 block text-sm font-black">
                   اسم القسم
                 </label>
 
                 <input
+                  type="text"
                   name="name"
                   value={form.name}
-                  onChange={handleNameChange}
-                  placeholder="مثال: تيشيرتات"
-                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-semibold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
+                  onChange={handleChange}
+                  autoFocus
+                  placeholder="مثال: تيشيرتات جيم"
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold text-zinc-900 outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                 />
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-black text-zinc-800">
+                <label className="mb-2 block text-sm font-black">
                   Slug
                 </label>
 
                 <input
+                  type="text"
                   name="slug"
                   value={form.slug}
                   onChange={handleChange}
                   placeholder="tshirts"
                   dir="ltr"
-                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-left text-sm font-semibold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-left text-sm font-semibold text-zinc-900 outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                 />
-
-                <p className="mt-2 text-xs text-zinc-400">
-                  بيستخدم في رابط القسم.
-                </p>
               </div>
 
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-black text-zinc-800">
+                <label className="mb-2 block text-sm font-black">
                   وصف القسم
                 </label>
 
@@ -456,31 +479,26 @@ function AdminCategories() {
                   value={form.description}
                   onChange={handleChange}
                   rows={4}
-                  placeholder="اكتب وصف بسيط للقسم..."
-                  className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
+                  placeholder="اكتب وصف القسم..."
+                  className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-900 outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="mb-2 flex items-center gap-2 text-sm font-black text-zinc-800">
+                <label className="mb-2 flex items-center gap-2 text-sm font-black">
                   <ImageIcon size={16} />
-
                   رابط صورة القسم
                 </label>
 
                 <input
+                  type="url"
                   name="image"
                   value={form.image}
                   onChange={handleChange}
                   placeholder="https://example.com/category.jpg"
                   dir="ltr"
-                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-left text-sm font-semibold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-left text-sm font-semibold text-zinc-900 outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                 />
-
-                <p className="mt-2 text-xs text-zinc-400">
-                  حط رابط مباشر للصورة. مش محتاج
-                  Firebase Storage.
-                </p>
               </div>
 
               {form.image && (
@@ -497,11 +515,12 @@ function AdminCategories() {
                 </div>
               )}
 
-              <div className="flex flex-col gap-3 sm:flex-row md:col-span-2 md:justify-end">
+              <div className="flex flex-col gap-3 border-t border-zinc-100 pt-5 sm:flex-row md:col-span-2 md:justify-end">
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="rounded-2xl border border-zinc-200 bg-white px-6 py-3 text-sm font-black text-zinc-700 transition hover:bg-zinc-100"
+                  disabled={saving}
+                  className="rounded-2xl border border-zinc-200 bg-white px-6 py-3 text-sm font-black transition hover:bg-zinc-100 disabled:opacity-50"
                 >
                   إلغاء
                 </button>
@@ -509,19 +528,22 @@ function AdminCategories() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-7 py-3 text-sm font-black text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-black px-7 py-3 text-sm font-black text-white transition hover:bg-zinc-800 disabled:opacity-60"
                 >
                   {saving ? (
                     <>
                       <RefreshCw
                         size={17}
-                        className="animate-spin"
+                        className="animate-spin text-[#39ff14]"
                       />
-
                       جاري الحفظ...
                     </>
                   ) : (
                     <>
+                      <Pencil
+                        size={16}
+                        className="text-[#39ff14]"
+                      />
                       {editingId
                         ? "حفظ التعديل"
                         : "إضافة القسم"}
@@ -537,20 +559,18 @@ function AdminCategories() {
 
         {loading && (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map(
-              (_, index) => (
-                <div
-                  key={index}
-                  className="overflow-hidden rounded-[2rem] border border-zinc-200 bg-white p-4"
-                >
-                  <div className="h-48 animate-pulse rounded-2xl bg-zinc-200" />
-
-                  <div className="mt-5 h-6 w-2/3 animate-pulse rounded bg-zinc-200" />
-
-                  <div className="mt-3 h-4 w-full animate-pulse rounded bg-zinc-200" />
-                </div>
-              )
-            )}
+            {Array.from({
+              length: 6,
+            }).map((_, index) => (
+              <div
+                key={index}
+                className="overflow-hidden rounded-[2rem] border border-zinc-200 bg-white p-4"
+              >
+                <div className="h-48 animate-pulse rounded-2xl bg-zinc-200" />
+                <div className="mt-5 h-6 w-2/3 animate-pulse rounded bg-zinc-200" />
+                <div className="mt-3 h-4 w-full animate-pulse rounded bg-zinc-200" />
+              </div>
+            ))}
           </div>
         )}
 
@@ -563,35 +583,30 @@ function AdminCategories() {
                 (category) => (
                   <div
                     key={category.id}
-                    className="overflow-hidden rounded-[2rem] border border-zinc-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                    className="group overflow-hidden rounded-[2rem] border border-zinc-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                   >
                     <div className="relative h-48 overflow-hidden bg-zinc-100">
                       {category.image ? (
                         <img
                           src={category.image}
-                          alt={
-                            category.name ||
-                            "قسم"
-                          }
-                          className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                          alt={category.name}
                           loading="lazy"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
-                        <div className="flex h-full items-center justify-center bg-zinc-950 text-[#39ff14]">
-                          <FolderOpen
-                            size={48}
-                          />
+                        <div className="flex h-full items-center justify-center bg-black text-[#39ff14]">
+                          <FolderOpen size={48} />
                         </div>
                       )}
 
-                      <div className="absolute right-3 top-3 rounded-full bg-black/80 px-3 py-1 text-xs font-black text-white">
+                      <div className="absolute right-3 top-3 rounded-full bg-black/85 px-3 py-1.5 text-xs font-black text-white backdrop-blur">
                         {category.slug ||
                           category.id}
                       </div>
                     </div>
 
                     <div className="p-5">
-                      <h2 className="text-xl font-black">
+                      <h2 className="text-xl font-black text-zinc-900">
                         {category.name ||
                           "بدون اسم"}
                       </h2>
@@ -612,7 +627,6 @@ function AdminCategories() {
                           className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-black text-zinc-800 transition hover:border-black hover:bg-zinc-100"
                         >
                           <Pencil size={16} />
-
                           تعديل
                         </button>
 
@@ -636,9 +650,7 @@ function AdminCategories() {
                               className="animate-spin"
                             />
                           ) : (
-                            <Trash2
-                              size={16}
-                            />
+                            <Trash2 size={16} />
                           )}
                         </button>
                       </div>
@@ -677,7 +689,6 @@ function AdminCategories() {
                   className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-black px-6 py-3 text-sm font-black text-white"
                 >
                   <Plus size={17} />
-
                   إضافة أول قسم
                 </button>
               )}

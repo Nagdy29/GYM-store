@@ -25,6 +25,9 @@ import AdminProducts from "./admin/AdminProducts";
 import AdminCategories from "./admin/AdminCategories";
 import AdminOrders from "./admin/AdminOrders";
 import AdminReviews from "./admin/AdminReviews";
+import AdminSecretChallenge from "./admin/AdminSecretChallenge";
+
+import SecretChallenge from "./pages/SecretChallenge";
 
 function App() {
   return (
@@ -69,9 +72,16 @@ function App() {
             element={<OrderSuccess />}
           />
 
+          {/* المفتاح الخفي للعميل */}
+          <Route
+            path="/secret"
+            element={<SecretChallenge />}
+          />
+
           {/* =========================
               About & Contact
           ========================== */}
+
           <Route
             path="/about"
             element={<About />}
@@ -86,6 +96,7 @@ function App() {
         {/* =========================
             Admin Login
         ========================== */}
+
         <Route
           path="/admin/login"
           element={<AdminLogin />}
@@ -94,38 +105,53 @@ function App() {
         {/* =========================
             Admin
         ========================== */}
+
         <Route element={<AdminProtectedRoute />}>
           <Route element={<AdminLayout />}>
+
+            {/* Dashboard */}
             <Route
               path="/admin"
               element={<AdminDashboard />}
             />
 
+            {/* Products */}
             <Route
               path="/admin/products"
               element={<AdminProducts />}
             />
 
+            {/* Categories */}
             <Route
               path="/admin/categories"
               element={<AdminCategories />}
             />
 
+            {/* Orders */}
             <Route
               path="/admin/orders"
               element={<AdminOrders />}
             />
 
+            {/* Reviews */}
             <Route
               path="/admin/reviews"
               element={<AdminReviews />}
             />
+
+            {/* Secret Challenge */}
+            <Route
+              path="/admin/secret"
+              element={<AdminSecretChallenge />}
+            />
+
           </Route>
         </Route>
 
         {/* =========================
             404
         ========================== */}
+
         <Route
           path="*"
           element={<NotFound />}

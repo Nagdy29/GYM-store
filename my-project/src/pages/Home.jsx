@@ -21,95 +21,113 @@ import {
   Users,
 } from "lucide-react";
 
-import { categories } from "../data/products";
+import {
+  getCategoriesFromFirebase,
+} from "../firebase/categories";
 
 import {
   getProductsFromFirebase,
 } from "../firebase/products";
 
 function formatPrice(price) {
-  return `${Number(price || 0).toLocaleString("ar-EG")} جنيه`;
+  return `${Number(
+    price || 0
+  ).toLocaleString("ar-EG")} جنيه`;
 }
 
-const categoryImages = {
-  tshirts:
-    "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85",
-
-  pants:
-    "https://images.unsplash.com/photo-1506629905607-d9c8f7e4d3b5?auto=format&fit=crop&w=900&q=85",
-
-  shorts:
-    "https://images.unsplash.com/photo-1561214115-f2f134cc4912?auto=format&fit=crop&w=900&q=85",
-
-  accessories:
-    "https://images.unsplash.com/photo-1580083770445-2aeb4d2f0c13?auto=format&fit=crop&w=900&q=85",
-
-  supplements:
-    "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=900&q=85",
-};
-
-const fallbackCategoryImages = [
-  "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1506629905607-d9c8f7e4d3b5?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1561214115-f2f134cc4912?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1580083770445-2aeb4d2f0c13?auto=format&fit=crop&w=900&q=85",
-  "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=900&q=85",
+const categoryFallbackImages = [
+  "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=1200&q=90",
+  "/bantalon.jpeg",
+  "https://images.unsplash.com/photo-1580083770445-2aeb4d2f0c13?auto=format&fit=crop&w=1200&q=90",
+  "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=1200&q=90",
+  "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=90",
 ];
 
-function getCategoryImage(category, index) {
-  if (category?.image) {
-    return category.image;
-  }
-
+function getCategoryImage(
+  category,
+  index
+) {
   return (
-    categoryImages[category?.id] ||
-    fallbackCategoryImages[
-      index % fallbackCategoryImages.length
+    category?.image ||
+    categoryFallbackImages[
+      index %
+        categoryFallbackImages.length
     ]
   );
 }
 
 function Home() {
-  const [featuredProducts, setFeaturedProducts] =
-    useState([]);
+  const [
+    featuredProducts,
+    setFeaturedProducts,
+  ] = useState([]);
+
+  const [
+    categories,
+    setCategories,
+  ] = useState([]);
 
   const [loading, setLoading] =
     useState(true);
 
-  const [productError, setProductError] =
-    useState("");
+  const [
+    productError,
+    setProductError,
+  ] = useState("");
 
-  const loadProducts =
-    useCallback(async () => {
-      try {
-        setLoading(true);
-        setProductError("");
+  const loadHomeData =
+    useCallback(
+      async () => {
+        try {
+          setLoading(true);
+          setProductError("");
 
-        const data =
-          await getProductsFromFirebase();
+          const [
+            productsData,
+            categoriesData,
+          ] = await Promise.all([
+            getProductsFromFirebase(),
+            getCategoriesFromFirebase(),
+          ]);
 
-        setFeaturedProducts(
-          Array.isArray(data)
-            ? data.slice(0, 4)
-            : []
-        );
-      } catch (error) {
-        console.error(
-          "Home Products Error:",
-          error
-        );
+          setFeaturedProducts(
+            Array.isArray(
+              productsData
+            )
+              ? productsData.slice(
+                  0,
+                  4
+                )
+              : []
+          );
 
-        setProductError(
-          "مش قادرين نحمل المنتجات حاليًا."
-        );
-      } finally {
-        setLoading(false);
-      }
-    }, []);
+          setCategories(
+            Array.isArray(
+              categoriesData
+            )
+              ? categoriesData
+              : []
+          );
+        } catch (error) {
+          console.error(
+            "Home Firebase Error:",
+            error
+          );
+
+          setProductError(
+            error?.message ||
+              "مش قادرين نحمل بيانات المتجر حاليًا."
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      []
+    );
 
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
+    loadHomeData();
+  }, [loadHomeData]);
 
   const customerReviews = [
     {
@@ -187,28 +205,18 @@ function Home() {
       dir="rtl"
       className="min-h-screen overflow-hidden bg-[#050505] text-white"
     >
-      {/* =====================================================
-          HERO
-      ====================================================== */}
+      {/* HERO */}
 
-      <section className="relative overflow-hidden border-b border-white/[0.06] bg-[#050505]">
-        {/* Background glows */}
+      <section className="relative overflow-hidden bg-[#050505]">
+        <div className="pointer-events-none absolute -right-40 -top-40 h-[550px] w-[550px] rounded-full bg-[#39ff14]/[0.045] blur-[150px]" />
 
-        <div className="pointer-events-none absolute -right-40 -top-40 h-[500px] w-[500px] rounded-full bg-[#39ff14]/[0.05] blur-[140px]" />
+        <div className="pointer-events-none absolute -left-40 bottom-0 h-[450px] w-[450px] rounded-full bg-[#39ff14]/[0.025] blur-[140px]" />
 
-        <div className="pointer-events-none absolute -left-40 bottom-0 h-[450px] w-[450px] rounded-full bg-[#39ff14]/[0.03] blur-[130px]" />
+        <div className="pointer-events-none absolute inset-0 opacity-[0.018] [background-image:linear-gradient(rgba(255,255,255,0.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.6)_1px,transparent_1px)] [background-size:70px_70px]" />
 
-        <div className="pointer-events-none absolute inset-0 opacity-[0.02] [background-image:linear-gradient(rgba(255,255,255,0.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.6)_1px,transparent_1px)] [background-size:70px_70px]" />
-
-        <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-            {/* =========================
-                TEXT SIDE
-            ========================== */}
-
-            <div className="order-2 lg:order-1">
-              {/* Brand badge */}
-
+        <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+          <div className="grid min-h-[680px] items-center lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="relative z-20 order-2 py-8 lg:order-1 lg:pl-10">
               <div className="hero-reveal inline-flex items-center gap-3 rounded-full border border-[#39ff14]/15 bg-white/[0.025] px-4 py-2.5 backdrop-blur-xl">
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#39ff14] text-black">
                   <Dumbbell size={16} />
@@ -225,57 +233,47 @@ function Home() {
                 </div>
               </div>
 
-              {/* Title */}
-
-              <h1 className="hero-reveal-delay mt-7 max-w-2xl text-5xl font-black leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-[70px]">
+              <h1 className="hero-reveal-delay mt-7 max-w-3xl text-5xl font-black leading-[1.02] tracking-tight text-white sm:text-6xl lg:text-[72px]">
                 لبسك جزء من
-
                 <span className="block text-[#39ff14]">
                   قوتك.
                 </span>
-
                 <span className="mt-1 block text-white">
                   خليك جاهز.
                 </span>
               </h1>
 
-              {/* Description */}
-
               <p className="hero-reveal-delay-2 mt-6 max-w-xl text-sm leading-8 text-zinc-400 sm:text-base sm:leading-9">
                 في HIRAQL بنقدملك ملابس رياضية وإكسسوارات
-                مختارة بعناية عشان تجمع بين الراحة،
-                الشكل والأداء في كل تمرينة.
+                مختارة بعناية عشان تجمع بين الراحة، الشكل
+                والأداء في كل تمرينة.
               </p>
-
-              {/* Buttons */}
 
               <div className="hero-reveal-delay-3 mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
                   to="/products"
-                  className="group inline-flex items-center justify-center gap-3 rounded-2xl bg-[#39ff14] px-7 py-4 text-sm font-black text-black transition-all duration-300 hover:-translate-y-1 hover:bg-[#4dff2d] hover:shadow-[0_20px_60px_rgba(57,255,20,0.16)]"
+                  className="group inline-flex items-center justify-center gap-3 rounded-2xl bg-[#39ff14] px-7 py-4 text-sm font-black text-black transition-all duration-300 hover:-translate-y-1 hover:bg-[#4dff2d]"
                 >
                   ابدأ التسوق
 
                   <ArrowLeft
                     size={18}
-                    className="transition-transform duration-300 group-hover:-translate-x-1"
+                    className="transition-transform group-hover:-translate-x-1"
                   />
                 </Link>
 
                 <Link
                   to="/categories"
-                  className="group inline-flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.025] px-7 py-4 text-sm font-black text-white transition-all duration-300 hover:-translate-y-1 hover:border-[#39ff14]/20 hover:bg-[#39ff14]/[0.04]"
+                  className="group inline-flex items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/[0.025] px-7 py-4 text-sm font-black text-white transition-all duration-300 hover:-translate-y-1 hover:border-[#39ff14]/20"
                 >
                   استكشف الأقسام
 
                   <ChevronLeft
                     size={17}
-                    className="text-[#39ff14] transition-transform duration-300 group-hover:-translate-x-1"
+                    className="text-[#39ff14] transition-transform group-hover:-translate-x-1"
                   />
                 </Link>
               </div>
-
-              {/* Stats */}
 
               <div className="hero-reveal-delay-4 mt-9 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
@@ -283,118 +281,79 @@ function Home() {
                   ["إكسسوارات", "02"],
                   ["أسعار مناسبة", "03"],
                   ["شحن للبيت", "04"],
-                ].map(([text, number]) => (
-                  <div
-                    key={number}
-                    className="group rounded-2xl border border-white/[0.07] bg-[#0b0b0b]/90 px-4 py-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#39ff14]/20"
-                  >
-                    <span className="text-[10px] font-black text-[#39ff14]">
-                      {number}
-                    </span>
+                ].map(
+                  ([text, number]) => (
+                    <div
+                      key={number}
+                      className="group rounded-2xl border border-white/[0.07] bg-[#0b0b0b]/85 px-4 py-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#39ff14]/20"
+                    >
+                      <span className="text-[10px] font-black text-[#39ff14]">
+                        {number}
+                      </span>
 
-                    <p className="mt-1 text-[11px] font-bold text-zinc-500">
-                      {text}
-                    </p>
-                  </div>
-                ))}
+                      <p className="mt-1 text-[11px] font-bold text-zinc-500">
+                        {text}
+                      </p>
+                    </div>
+                  )
+                )}
               </div>
             </div>
 
-            {/* =========================
-                IMAGE SIDE
-            ========================== */}
+            <div className="relative order-1 flex min-h-[500px] items-center justify-center lg:order-2 lg:min-h-[680px]">
+              <div className="pointer-events-none absolute right-[5%] top-[15%] h-[420px] w-[420px] rounded-full bg-[#39ff14]/[0.06] blur-[100px]" />
 
-            <div className="order-1 flex justify-center lg:order-2 lg:justify-end">
-              <div className="relative w-full max-w-[560px]">
-                {/* Green glow behind image */}
+              <div className="relative h-[470px] w-full max-w-[560px] overflow-hidden sm:h-[560px] lg:h-[640px]">
+                <img
+                  src="WhatsApp Image 2026-09-08 at 11.45.32 AM.jpeg"
+                  alt="HIRAQL Gym"
+                  className="h-full w-full object-cover object-center opacity-95 transition-transform duration-1000 hover:scale-[1.02]"
+                />
 
-                <div className="pointer-events-none absolute -inset-8 rounded-[3rem] bg-[#39ff14]/[0.055] blur-[70px]" />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#050505]/10 via-transparent to-[#050505]/80" />
 
-                {/* Main image frame */}
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/10" />
 
-                <div className="relative rounded-[2.5rem] border border-white/[0.09] bg-[#0a0a0a] p-3 shadow-[0_30px_100px_rgba(0,0,0,0.5)] sm:p-4">
-                  {/* Image */}
+                <div className="pointer-events-none absolute right-0 top-0 h-full w-24 bg-gradient-to-l from-[#050505] to-transparent opacity-70" />
 
-                  <div className="relative overflow-hidden rounded-[2rem] border border-white/[0.07] bg-black">
-                    <img
-                      src="WhatsApp Image 2026-09-08 at 11.45.32 AM.jpeg"
-                      alt="HIRAQL Gym"
-                      className="h-[420px] w-full object-cover object-center transition-transform duration-700 hover:scale-[1.03] sm:h-[500px] lg:h-[560px]"
-                    />
+                <div className="absolute bottom-8 right-6 left-6">
+                  <div className="flex items-end justify-between gap-4">
+                    <div>
+                      <p className="text-[9px] font-black tracking-[0.25em] text-[#39ff14]">
+                        HIRAQL / GYM
+                      </p>
 
-                    {/* subtle image overlay */}
+                      <h3 className="mt-2 text-xl font-black sm:text-2xl">
+                        Train Hard.
+                      </h3>
 
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/5" />
-
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-black/25 via-transparent to-transparent" />
-
-                    {/* Small top label */}
-
-                    <div className="absolute right-5 top-5">
-                      <div className="rounded-full border border-white/10 bg-black/60 px-4 py-2 text-[10px] font-black tracking-[0.15em] text-white backdrop-blur-xl">
-                        HIRAQL / 01
-                      </div>
+                      <p className="mt-1 text-xs font-bold text-zinc-300 sm:text-sm">
+                        Wear Better.
+                      </p>
                     </div>
 
-                    {/* Bottom image information */}
-
-                    <div className="absolute bottom-5 right-5 left-5">
-                      <div className="rounded-[1.5rem] border border-white/10 bg-black/65 p-4 backdrop-blur-xl sm:p-5">
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <p className="text-[9px] font-black tracking-[0.2em] text-[#39ff14]">
-                              HIRAQL GYM STORE
-                            </p>
-
-                            <p className="mt-1 text-sm font-black text-white sm:text-base">
-                              Train Hard. Wear Better.
-                            </p>
-                          </div>
-
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#39ff14] text-black">
-                            <Dumbbell size={18} />
-                          </div>
-                        </div>
-                      </div>
+                    <div className="hidden h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/50 text-[#39ff14] backdrop-blur-xl sm:flex">
+                      <Dumbbell size={20} />
                     </div>
                   </div>
+                </div>
+              </div>
 
-                  {/* Floating number card */}
-
-                  <div className="hero-float absolute -bottom-5 -left-3 hidden sm:block">
-                    <div className="rounded-2xl border border-white/10 bg-[#0d0d0d]/95 px-5 py-4 shadow-2xl backdrop-blur-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#39ff14] text-sm font-black text-black">
-                          24/7
-                        </div>
-
-                        <div>
-                          <p className="text-[9px] font-bold text-zinc-600">
-                            STYLE
-                          </p>
-
-                          <p className="text-xs font-black text-white">
-                            خليك جاهز دايمًا
-                          </p>
-                        </div>
-                      </div>
+              <div className="hero-float absolute bottom-10 left-1 hidden sm:block lg:left-2">
+                <div className="rounded-2xl border border-white/10 bg-black/85 px-4 py-3 shadow-2xl backdrop-blur-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#39ff14] text-black">
+                      <Sparkles size={16} />
                     </div>
-                  </div>
 
-                  {/* Floating green card */}
+                    <div>
+                      <p className="text-[9px] font-black text-zinc-600">
+                        YOUR STYLE
+                      </p>
 
-                  <div className="absolute -right-3 top-20 hidden sm:block">
-                    <div className="rounded-2xl border border-[#39ff14]/15 bg-black/85 px-4 py-4 shadow-2xl backdrop-blur-xl">
-                      <div className="flex items-center gap-2">
-                        <Sparkles
-                          size={15}
-                          className="text-[#39ff14]"
-                        />
-
-                        <span className="text-[10px] font-black text-white">
-                          READY TO TRAIN
-                        </span>
-                      </div>
+                      <p className="text-xs font-black text-white">
+                        جاهز للتمرين
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -402,9 +361,7 @@ function Home() {
             </div>
           </div>
 
-          {/* Small scroll indicator */}
-
-          <div className="mt-12 hidden items-center justify-center gap-3 lg:flex">
+          <div className="mt-5 hidden items-center justify-center gap-3 lg:flex">
             <span className="h-px w-14 bg-gradient-to-l from-[#39ff14] to-transparent" />
 
             <span className="text-[9px] font-bold tracking-[0.25em] text-zinc-600">
@@ -416,50 +373,48 @@ function Home() {
         </div>
       </section>
 
-      {/* =====================================================
-          FEATURES
-      ====================================================== */}
+      {/* FEATURES */}
 
       <section className="relative z-20 border-y border-white/[0.06] bg-[#050505]">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((item) => {
-              const Icon = item.icon;
+            {features.map(
+              (item) => {
+                const Icon = item.icon;
 
-              return (
-                <div
-                  key={item.title}
-                  className="group relative overflow-hidden rounded-[1.5rem] border border-white/[0.07] bg-[#0b0b0b] p-5 transition-all duration-500 hover:-translate-y-1 hover:border-[#39ff14]/20 hover:bg-[#0e0e0e]"
-                >
-                  <span className="absolute left-4 top-4 text-[9px] font-black text-zinc-700 transition-colors duration-300 group-hover:text-[#39ff14]">
-                    {item.number}
-                  </span>
+                return (
+                  <div
+                    key={item.title}
+                    className="group relative overflow-hidden rounded-[1.5rem] border border-white/[0.07] bg-[#0b0b0b] p-5 transition-all duration-500 hover:-translate-y-1 hover:border-[#39ff14]/20"
+                  >
+                    <span className="absolute left-4 top-4 text-[9px] font-black text-zinc-700">
+                      {item.number}
+                    </span>
 
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.04] text-zinc-300 transition-all duration-500 group-hover:border-[#39ff14]/20 group-hover:bg-[#39ff14] group-hover:text-black">
-                      <Icon size={20} />
-                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.04] text-zinc-300 transition-all group-hover:bg-[#39ff14] group-hover:text-black">
+                        <Icon size={20} />
+                      </div>
 
-                    <div>
-                      <h3 className="text-sm font-black text-white">
-                        {item.title}
-                      </h3>
+                      <div>
+                        <h3 className="text-sm font-black text-white">
+                          {item.title}
+                        </h3>
 
-                      <p className="mt-1 text-[11px] leading-5 text-zinc-500">
-                        {item.text}
-                      </p>
+                        <p className="mt-1 text-[11px] leading-5 text-zinc-500">
+                          {item.text}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              }
+            )}
           </div>
         </div>
       </section>
 
-      {/* =====================================================
-          CATEGORIES
-      ====================================================== */}
+      {/* CATEGORIES */}
 
       <section className="relative overflow-hidden bg-[#050505]">
         <div className="pointer-events-none absolute -right-40 top-10 h-96 w-96 rounded-full bg-[#39ff14]/5 blur-[130px]" />
@@ -471,99 +426,126 @@ function Home() {
                 <span className="h-1.5 w-1.5 rounded-full bg-[#39ff14]" />
 
                 <span className="text-[10px] font-black text-[#39ff14]">
-                  EXPLORE COLLECTION
+                  GYM COLLECTION
                 </span>
               </div>
 
-              <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+              <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
                 اختار القسم
                 <span className="text-[#39ff14]">
-                  {" "}المناسب
+                  {" "}
+                  المناسب
                 </span>
               </h2>
 
               <p className="mt-4 max-w-xl text-sm leading-8 text-zinc-500">
-                كل احتياجات التمرين قدامك في مكان واحد،
-                اختار القسم اللي يناسبك وابدأ رحلتك.
+                الأقسام دي بتتجاب مباشرة من Firebase.
               </p>
             </div>
 
             <Link
               to="/categories"
-              className="group inline-flex w-fit items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-xs font-black text-white transition-all duration-300 hover:border-[#39ff14]/20 hover:bg-[#39ff14]/[0.05]"
+              className="group inline-flex w-fit items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-xs font-black text-white transition hover:border-[#39ff14]/20"
             >
               مشاهدة كل الأقسام
 
               <ArrowLeft
                 size={16}
-                className="text-[#39ff14] transition-transform duration-300 group-hover:-translate-x-1"
+                className="text-[#39ff14] transition-transform group-hover:-translate-x-1"
               />
             </Link>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {categories.map((category, index) => {
-              const image =
-                getCategoryImage(
+          {loading ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="min-h-[350px] animate-pulse rounded-[2rem] bg-[#0b0b0b]"
+                  />
+                )
+              )}
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="rounded-[2rem] border border-dashed border-white/10 bg-[#0b0b0b] p-12 text-center">
+              <Dumbbell
+                size={36}
+                className="mx-auto text-zinc-700"
+              />
+
+              <p className="mt-4 text-sm font-black text-white">
+                مفيش أقسام مضافة لسه
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {categories.map(
+                (
                   category,
                   index
-                );
+                ) => {
+                  const image =
+                    getCategoryImage(
+                      category,
+                      index
+                    );
 
-              return (
-                <Link
-                  key={category.id}
-                  to={`/products?category=${category.id}`}
-                  className="group relative min-h-[340px] overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#0a0a0a] transition-all duration-500 hover:-translate-y-2 hover:border-[#39ff14]/30 hover:shadow-[0_25px_70px_rgba(0,0,0,0.45)]"
-                >
-                  <img
-                    src={image}
-                    alt={category.name}
-                    loading="lazy"
-                    className="absolute inset-0 h-full w-full object-cover opacity-55 grayscale transition-all duration-700 group-hover:scale-110 group-hover:opacity-75 group-hover:grayscale-0"
-                  />
-
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/20" />
-
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#39ff14]/10 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-
-                  <span className="absolute left-5 top-5 text-[10px] font-black text-white/40 transition-colors duration-300 group-hover:text-[#39ff14]">
-                    0{index + 1}
-                  </span>
-
-                  <div className="absolute right-5 top-5 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-black/45 text-lg backdrop-blur-xl transition-all duration-500 group-hover:border-[#39ff14]/30 group-hover:bg-[#39ff14] group-hover:text-black">
-                    {category.icon}
-                  </div>
-
-                  <div className="absolute inset-x-0 bottom-0 p-6">
-                    <div className="mb-3 h-1 w-7 rounded-full bg-[#39ff14] transition-all duration-500 group-hover:w-14" />
-
-                    <h3 className="text-lg font-black text-white">
-                      {category.name}
-                    </h3>
-
-                    <p className="mt-2 line-clamp-2 text-xs leading-6 text-zinc-400">
-                      {category.description}
-                    </p>
-
-                    <div className="mt-5 flex items-center gap-2 text-[11px] font-black text-[#39ff14]">
-                      استكشف القسم
-
-                      <ArrowLeft
-                        size={14}
-                        className="transition-transform duration-300 group-hover:-translate-x-1"
+                  return (
+                    <Link
+                      key={category.id}
+                      to={`/products?category=${encodeURIComponent(
+                        category.id
+                      )}`}
+                      className="group relative min-h-[350px] overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#0a0a0a] transition-all duration-500 hover:-translate-y-2 hover:border-[#39ff14]/30"
+                    >
+                      <img
+                        src={image}
+                        alt={
+                          category.name
+                        }
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover opacity-60 transition-all duration-700 group-hover:scale-110 group-hover:opacity-80"
                       />
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/5" />
+
+                      <span className="absolute left-5 top-5 text-[10px] font-black text-white/40 group-hover:text-[#39ff14]">
+                        0{index + 1}
+                      </span>
+
+                      <div className="absolute inset-x-0 bottom-0 p-6">
+                        <div className="mb-3 h-1 w-7 rounded-full bg-[#39ff14] transition-all group-hover:w-14" />
+
+                        <h3 className="text-lg font-black text-white">
+                          {
+                            category.name
+                          }
+                        </h3>
+
+                        <p className="mt-2 line-clamp-2 text-xs leading-6 text-zinc-400">
+                          {
+                            category.description
+                          }
+                        </p>
+
+                        <div className="mt-5 flex items-center gap-2 text-[11px] font-black text-[#39ff14]">
+                          استكشف القسم
+                          <ArrowLeft
+                            size={14}
+                          />
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                }
+              )}
+            </div>
+          )}
         </div>
       </section>
 
-      {/* =====================================================
-          PRODUCTS
-      ====================================================== */}
+      {/* PRODUCTS */}
 
       <section className="relative border-y border-white/[0.05] bg-[#080808]">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
@@ -571,11 +553,10 @@ function Home() {
             <div>
               <span className="inline-flex items-center gap-2 text-xs font-black text-[#39ff14]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#39ff14]" />
-
                 اختيارات HIRAQL
               </span>
 
-              <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
+              <h2 className="mt-3 text-3xl font-black sm:text-4xl">
                 منتجات مميزة
               </h2>
 
@@ -586,43 +567,44 @@ function Home() {
 
             <Link
               to="/products"
-              className="group inline-flex items-center gap-2 text-sm font-black text-white"
+              className="group inline-flex items-center gap-2 text-sm font-black"
             >
               عرض كل المنتجات
 
               <ArrowLeft
                 size={17}
-                className="text-[#39ff14] transition-transform duration-300 group-hover:-translate-x-1"
+                className="text-[#39ff14]"
               />
             </Link>
           </div>
 
           {loading ? (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((item) => (
-                <div
-                  key={item}
-                  className="overflow-hidden rounded-[1.7rem] border border-white/[0.06] bg-[#0d0d0d]"
-                >
-                  <div className="aspect-square animate-pulse bg-white/[0.04]" />
+              {[1, 2, 3, 4].map(
+                (item) => (
+                  <div
+                    key={item}
+                    className="overflow-hidden rounded-[1.7rem] bg-[#0d0d0d]"
+                  >
+                    <div className="aspect-square animate-pulse bg-white/[0.04]" />
 
-                  <div className="space-y-3 p-5">
-                    <div className="h-3 w-20 animate-pulse rounded-full bg-white/[0.06]" />
-                    <div className="h-5 w-3/4 animate-pulse rounded-full bg-white/[0.06]" />
-                    <div className="h-4 w-1/2 animate-pulse rounded-full bg-white/[0.06]" />
+                    <div className="space-y-3 p-5">
+                      <div className="h-4 w-3/4 animate-pulse rounded bg-white/[0.06]" />
+                      <div className="h-4 w-1/2 animate-pulse rounded bg-white/[0.06]" />
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           ) : productError ? (
-            <div className="rounded-[1.7rem] border border-red-500/10 bg-[#0d0d0d] p-10 text-center">
+            <div className="rounded-[1.7rem] bg-[#0d0d0d] p-10 text-center">
               <ShoppingBag
                 size={35}
                 className="mx-auto text-zinc-700"
               />
 
-              <h3 className="mt-4 font-black text-white">
-                حصلت مشكلة في تحميل المنتجات
+              <h3 className="mt-4 font-black">
+                حصلت مشكلة
               </h3>
 
               <p className="mt-2 text-sm text-zinc-500">
@@ -631,8 +613,8 @@ function Home() {
 
               <button
                 type="button"
-                onClick={loadProducts}
-                className="mt-5 rounded-xl bg-[#39ff14] px-5 py-3 text-xs font-black text-black transition-all hover:bg-[#4dff2d]"
+                onClick={loadHomeData}
+                className="mt-5 rounded-xl bg-[#39ff14] px-5 py-3 text-xs font-black text-black"
               >
                 حاول تاني
               </button>
@@ -644,113 +626,113 @@ function Home() {
                 className="mx-auto text-zinc-700"
               />
 
-              <h3 className="mt-4 font-black text-white">
+              <h3 className="mt-4 font-black">
                 المنتجات هتظهر هنا
               </h3>
 
               <p className="mt-2 text-sm text-zinc-500">
-                أضف منتجات من لوحة التحكم عشان تظهر في المتجر.
+                أضف منتجات من لوحة التحكم.
               </p>
             </div>
           ) : (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              {featuredProducts.map((product) => (
-                <Link
-                  key={product.id}
-                  to={`/products/${product.id}`}
-                  className="group overflow-hidden rounded-[1.7rem] border border-white/[0.07] bg-[#0c0c0c] transition-all duration-500 hover:-translate-y-2 hover:border-[#39ff14]/20 hover:shadow-[0_20px_60px_rgba(0,0,0,0.35)]"
-                >
-                  <div className="relative aspect-square overflow-hidden bg-[#111111]">
-                    {product.image ? (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        loading="lazy"
-                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <Dumbbell
-                          size={45}
-                          className="text-zinc-800"
+              {featuredProducts.map(
+                (product) => (
+                  <Link
+                    key={product.id}
+                    to={`/products/${product.id}`}
+                    className="group overflow-hidden rounded-[1.7rem] border border-white/[0.07] bg-[#0c0c0c] transition-all duration-500 hover:-translate-y-2 hover:border-[#39ff14]/20"
+                  >
+                    <div className="relative aspect-square overflow-hidden bg-[#111]">
+                      {product.image ? (
+                        <img
+                          src={
+                            product.image
+                          }
+                          alt={
+                            product.name
+                          }
+                          loading="lazy"
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
                         />
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <Dumbbell
+                            size={45}
+                            className="text-zinc-800"
+                          />
+                        </div>
+                      )}
 
-                    {product.badge && (
-                      <span className="absolute right-4 top-4 rounded-full bg-[#39ff14] px-3 py-1.5 text-[10px] font-black text-black shadow-lg">
-                        {product.badge}
-                      </span>
-                    )}
-
-                    {Number(product.discount || 0) > 0 && (
-                      <span className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/80 px-3 py-1.5 text-[10px] font-black text-white backdrop-blur-md">
-                        -{Number(product.discount)}%
-                      </span>
-                    )}
-
-                    {Number(product.stock || 0) <= 0 && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/65 backdrop-blur-[2px]">
-                        <span className="rounded-full bg-white px-4 py-2 text-xs font-black text-black shadow-xl">
-                          نفد المخزون
+                      {product.badge && (
+                        <span className="absolute right-4 top-4 rounded-full bg-[#39ff14] px-3 py-1.5 text-[10px] font-black text-black">
+                          {
+                            product.badge
+                          }
                         </span>
-                      </div>
-                    )}
-                  </div>
+                      )}
 
-                  <div className="p-5">
-                    <p className="text-[10px] font-bold text-zinc-600">
-                      {product.categoryName || "HIRAQL"}
-                    </p>
-
-                    <h3 className="mt-2 line-clamp-1 text-sm font-black text-white">
-                      {product.name}
-                    </h3>
-
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <span className="text-sm font-black text-white">
-                          {formatPrice(product.price)}
-                        </span>
-
-                        {Number(product.oldPrice) > 0 && (
-                          <span className="mr-2 text-[10px] text-zinc-600 line-through">
-                            {formatPrice(product.oldPrice)}
+                      {Number(
+                        product.stock || 0
+                      ) <= 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/65">
+                          <span className="rounded-full bg-white px-4 py-2 text-xs font-black text-black">
+                            نفد المخزون
                           </span>
-                        )}
-                      </div>
-
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] font-bold text-zinc-500">
-                        <Star
-                          size={11}
-                          className="fill-current"
-                        />
-
-                        {Number(product.rating || 0).toFixed(1)}
-                      </span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </Link>
-              ))}
+
+                    <div className="p-5">
+                      <p className="text-[10px] font-bold text-zinc-600">
+                        {
+                          product.categoryName ||
+                          "HIRAQL"
+                        }
+                      </p>
+
+                      <h3 className="mt-2 line-clamp-1 text-sm font-black">
+                        {
+                          product.name
+                        }
+                      </h3>
+
+                      <div className="mt-4 flex items-center justify-between gap-3">
+                        <span className="text-sm font-black">
+                          {formatPrice(
+                            product.price
+                          )}
+                        </span>
+
+                        <span className="inline-flex items-center gap-1 rounded-full border border-white/[0.06] px-2 py-1 text-[10px] font-bold text-zinc-500">
+                          <Star
+                            size={11}
+                            className="fill-current"
+                          />
+
+                          {Number(
+                            product.rating ||
+                              0
+                          ).toFixed(1)}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              )}
             </div>
           )}
         </div>
       </section>
 
-      {/* =====================================================
-          ABOUT
-      ====================================================== */}
+      {/* ABOUT */}
 
       <section
         id="about"
         className="relative overflow-hidden bg-[#050505]"
       >
-        <div className="pointer-events-none absolute -right-40 top-20 h-96 w-96 rounded-full bg-[#39ff14]/5 blur-[130px]" />
-
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            {/* IMAGE */}
-
             <div className="relative">
               <div className="absolute -inset-3 rounded-[2.5rem] border border-[#39ff14]/10" />
 
@@ -775,7 +757,7 @@ function Home() {
                         HIRAQL
                       </p>
 
-                      <p className="mt-1 text-sm font-black text-white">
+                      <p className="mt-1 text-sm font-black">
                         Train Hard. Wear Better.
                       </p>
                     </div>
@@ -784,35 +766,29 @@ function Home() {
               </div>
             </div>
 
-            {/* CONTENT */}
-
             <div>
               <span className="inline-flex items-center gap-2 text-xs font-black text-[#39ff14]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#39ff14]" />
-
                 عن HIRAQL
               </span>
 
-              <h2 className="mt-4 text-3xl font-black leading-tight text-white sm:text-5xl">
+              <h2 className="mt-4 text-3xl font-black leading-tight sm:text-5xl">
                 مش بنبيع
-
                 <span className="block text-[#39ff14]">
                   لبس بس.
                 </span>
               </h2>
 
               <p className="mt-6 text-sm leading-8 text-zinc-400 sm:text-base">
-                HIRAQL اتعملت عشان تكون أكتر من مجرد
-                متجر ملابس رياضية. هدفنا نقدم لك
-                اختيارات تجمع بين الشكل، الراحة
-                والجودة عشان تدخل التمرينة وانت واثق
-                في نفسك.
+                HIRAQL اتعملت عشان تكون أكتر من مجرد متجر
+                ملابس رياضية. هدفنا نقدم لك اختيارات تجمع بين
+                الشكل، الراحة والجودة عشان تدخل التمرينة وانت
+                واثق في نفسك.
               </p>
 
               <p className="mt-4 text-sm leading-8 text-zinc-600">
-                من أول التيشيرت لحد الإكسسوارات
-                والمنتجات اللي بتحتاجها في يومك،
-                بنحاول نخلي كل اختيار عندنا له قيمة.
+                من أول التيشيرت لحد الإكسسوارات والمنتجات اللي
+                بتحتاجها في يومك، بنحاول نخلي كل اختيار عندنا له قيمة.
               </p>
 
               <div className="mt-8 grid grid-cols-2 gap-3">
@@ -820,7 +796,6 @@ function Home() {
                   <p className="text-2xl font-black text-[#39ff14]">
                     01
                   </p>
-
                   <p className="mt-1 text-xs font-bold text-zinc-500">
                     جودة واختيارات
                   </p>
@@ -830,7 +805,6 @@ function Home() {
                   <p className="text-2xl font-black text-[#39ff14]">
                     02
                   </p>
-
                   <p className="mt-1 text-xs font-bold text-zinc-500">
                     ستايل مختلف
                   </p>
@@ -839,13 +813,13 @@ function Home() {
 
               <Link
                 to="/products"
-                className="group mt-8 inline-flex items-center gap-3 text-sm font-black text-white"
+                className="group mt-8 inline-flex items-center gap-3 text-sm font-black"
               >
                 اكتشف منتجاتنا
 
                 <ArrowLeft
                   size={17}
-                  className="text-[#39ff14] transition-transform duration-300 group-hover:-translate-x-1"
+                  className="text-[#39ff14]"
                 />
               </Link>
             </div>
@@ -853,34 +827,28 @@ function Home() {
         </div>
       </section>
 
-      {/* =====================================================
-          WHY HIRAQL
-      ====================================================== */}
+      {/* WHY */}
 
       <section className="relative border-y border-white/[0.05] bg-[#080808]">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
           <div className="grid gap-6 lg:grid-cols-[0.82fr_1.18fr]">
             <div className="group relative min-h-[390px] overflow-hidden rounded-[2.2rem] border border-white/[0.07] bg-[#0b0b0b] p-7 text-white sm:p-9">
-              <div className="pointer-events-none absolute -bottom-32 -left-20 h-72 w-72 rounded-full bg-[#39ff14]/5 blur-[90px] transition-all duration-700 group-hover:bg-[#39ff14]/10" />
-
               <div className="relative flex h-full flex-col justify-between">
                 <div>
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#39ff14] text-black">
                     <Dumbbell size={21} />
                   </div>
 
-                  <h2 className="mt-7 text-3xl font-black leading-tight sm:text-4xl">
+                  <h2 className="mt-7 text-3xl font-black sm:text-4xl">
                     ليه تختار
-
                     <span className="block text-[#39ff14]">
                       HIRAQL؟
                     </span>
                   </h2>
 
                   <p className="mt-5 max-w-md text-sm leading-8 text-zinc-500">
-                    بنحاول نخلي تجربة التسوق عندنا
-                    بسيطة ومريحة، من أول ما تختار
-                    المنتج لحد ما طلبك يوصل.
+                    بنحاول نخلي تجربة التسوق عندنا بسيطة ومريحة،
+                    من أول ما تختار المنتج لحد ما طلبك يوصل.
                   </p>
                 </div>
 
@@ -889,98 +857,70 @@ function Home() {
                   className="group mt-8 inline-flex w-fit items-center gap-2 text-sm font-black text-[#39ff14]"
                 >
                   شوف المنتجات
-
-                  <ArrowLeft
-                    size={16}
-                    className="transition-transform duration-300 group-hover:-translate-x-1"
-                  />
+                  <ArrowLeft size={16} />
                 </Link>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {benefits.map((item) => {
-                const Icon = item.icon;
+              {benefits.map(
+                (item) => {
+                  const Icon = item.icon;
 
-                return (
-                  <div
-                    key={item.title}
-                    className="group rounded-[1.7rem] border border-white/[0.07] bg-[#0b0b0b] p-6 transition-all duration-500 hover:-translate-y-1 hover:border-[#39ff14]/20 hover:bg-[#0e0e0e]"
-                  >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-zinc-300 transition-all duration-500 group-hover:border-[#39ff14]/20 group-hover:bg-[#39ff14] group-hover:text-black">
-                      <Icon size={20} />
+                  return (
+                    <div
+                      key={item.title}
+                      className="group rounded-[1.7rem] border border-white/[0.07] bg-[#0b0b0b] p-6 transition-all duration-500 hover:-translate-y-1 hover:border-[#39ff14]/20"
+                    >
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.035] text-zinc-300 transition-all duration-500 group-hover:bg-[#39ff14] group-hover:text-black">
+                        <Icon size={20} />
+                      </div>
+
+                      <h3 className="mt-5 text-sm font-black">
+                        {item.title}
+                      </h3>
+
+                      <p className="mt-2 text-xs leading-6 text-zinc-500">
+                        {item.text}
+                      </p>
                     </div>
-
-                    <h3 className="mt-5 text-sm font-black text-white">
-                      {item.title}
-                    </h3>
-
-                    <p className="mt-2 text-xs leading-6 text-zinc-500">
-                      {item.text}
-                    </p>
-                  </div>
-                );
-              })}
+                  );
+                }
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* =====================================================
-          REVIEWS
-      ====================================================== */}
+      {/* REVIEWS */}
 
       <section className="bg-[#050505]">
         <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-          <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <span className="inline-flex items-center gap-2 text-xs font-black text-[#39ff14]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#39ff14]" />
+          <div className="mb-10">
+            <span className="inline-flex items-center gap-2 text-xs font-black text-[#39ff14]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#39ff14]" />
+              رأي عملائنا
+            </span>
 
-                رأي عملائنا
-              </span>
-
-              <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-                الناس بتقول إيه؟
-              </h2>
-
-              <p className="mt-3 max-w-xl text-sm leading-7 text-zinc-500">
-                أهم حاجة عندنا إن العميل يكون
-                مبسوط من المنتج والتجربة كلها.
-              </p>
-            </div>
-
-            <Link
-              to="/products"
-              className="group inline-flex items-center gap-2 text-sm font-black text-white"
-            >
-              شوف المنتجات
-
-              <ChevronLeft
-                size={17}
-                className="text-[#39ff14] transition-transform duration-300 group-hover:-translate-x-1"
-              />
-            </Link>
+            <h2 className="mt-3 text-3xl font-black sm:text-4xl">
+              الناس بتقول إيه؟
+            </h2>
           </div>
 
           <div className="grid gap-5 md:grid-cols-3">
-            {customerReviews.map((review) => (
-              <article
-                key={review.id}
-                className="group relative overflow-hidden rounded-[1.7rem] border border-white/[0.07] bg-[#0b0b0b] p-6 transition-all duration-500 hover:-translate-y-1 hover:border-[#39ff14]/15"
-              >
-                <div className="absolute left-5 top-5 text-5xl font-black leading-none text-white/[0.03]">
-                  ”
-                </div>
-
-                <div className="relative flex items-center justify-between gap-4">
+            {customerReviews.map(
+              (review) => (
+                <article
+                  key={review.id}
+                  className="rounded-[1.7rem] border border-white/[0.07] bg-[#0b0b0b] p-6"
+                >
                   <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#39ff14] text-black">
                       <MessageSquare size={18} />
                     </div>
 
                     <div>
-                      <p className="text-sm font-black text-white">
+                      <p className="text-sm font-black">
                         {review.name}
                       </p>
 
@@ -990,44 +930,45 @@ function Home() {
                     </div>
                   </div>
 
-                  <div className="flex gap-0.5">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        size={13}
-                        className={
-                          star <= review.rating
-                            ? "fill-[#39ff14] text-[#39ff14]"
-                            : "text-zinc-700"
-                        }
-                      />
-                    ))}
+                  <div className="mt-4 flex gap-0.5">
+                    {[
+                      1,
+                      2,
+                      3,
+                      4,
+                      5,
+                    ].map(
+                      (star) => (
+                        <Star
+                          key={star}
+                          size={13}
+                          className={
+                            star <=
+                            review.rating
+                              ? "fill-[#39ff14] text-[#39ff14]"
+                              : "text-zinc-700"
+                          }
+                        />
+                      )
+                    )}
                   </div>
-                </div>
 
-                <p className="mt-6 text-sm leading-8 text-zinc-500">
-                  “{review.text}”
-                </p>
-
-                <div className="mt-6 h-1 w-8 rounded-full bg-[#39ff14] transition-all duration-500 group-hover:w-14" />
-              </article>
-            ))}
+                  <p className="mt-5 text-sm leading-8 text-zinc-500">
+                    “{review.text}”
+                  </p>
+                </article>
+              )
+            )}
           </div>
         </div>
       </section>
 
-      {/* =====================================================
-          FINAL CTA
-      ====================================================== */}
+      {/* CTA */}
 
       <section className="bg-[#050505] px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
-        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2.3rem] border border-white/[0.07] bg-[#0a0a0a] px-6 py-16 text-center text-white sm:px-12">
-          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-[#39ff14]/10 blur-[100px]" />
-
-          <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-white/[0.025] blur-[90px]" />
-
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2.3rem] border border-white/[0.07] bg-[#0a0a0a] px-6 py-16 text-center sm:px-12">
           <div className="relative">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#39ff14] text-black shadow-[0_12px_35px_rgba(57,255,20,0.12)]">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#39ff14] text-black">
               <Dumbbell size={24} />
             </div>
 
@@ -1036,7 +977,6 @@ function Home() {
                 size={13}
                 className="text-[#39ff14]"
               />
-
               HIRAQL GYM STORE
             </span>
 
@@ -1045,28 +985,25 @@ function Home() {
             </h2>
 
             <p className="mx-auto mt-4 max-w-xl text-sm leading-8 text-zinc-500">
-              اختار احتياجاتك، ضيفها للسلة،
-              وكمل طلبك بكل سهولة.
+              اختار احتياجاتك، ضيفها للسلة، وكمل طلبك بكل سهولة.
             </p>
 
             <Link
               to="/products"
-              className="group mt-8 inline-flex items-center gap-3 rounded-2xl bg-[#39ff14] px-7 py-4 text-sm font-black text-black transition-all duration-300 hover:-translate-y-1 hover:bg-[#4dff2d] hover:shadow-[0_15px_40px_rgba(57,255,20,0.14)]"
+              className="group mt-8 inline-flex items-center gap-3 rounded-2xl bg-[#39ff14] px-7 py-4 text-sm font-black text-black transition-all duration-300 hover:-translate-y-1 hover:bg-[#4dff2d]"
             >
               تسوق الآن
 
               <ArrowUpLeft
                 size={19}
-                className="transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:-translate-x-0.5"
+                className="transition-transform group-hover:-translate-y-0.5"
               />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* =====================================================
-          BACK TO TOP
-      ====================================================== */}
+      {/* BACK TO TOP */}
 
       <button
         type="button"
@@ -1077,17 +1014,10 @@ function Home() {
             behavior: "smooth",
           })
         }
-        className="group fixed bottom-6 left-6 z-40 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/85 text-white shadow-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-[#39ff14]/30 hover:bg-[#39ff14] hover:text-black"
+        className="group fixed bottom-6 left-6 z-40 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-black/85 text-white shadow-2xl backdrop-blur-xl transition hover:border-[#39ff14]/30 hover:bg-[#39ff14] hover:text-black"
       >
-        <ArrowUpLeft
-          size={19}
-          className="transition-transform duration-300 group-hover:-translate-y-0.5"
-        />
+        <ArrowUpLeft size={19} />
       </button>
-
-      {/* =====================================================
-          ANIMATIONS
-      ====================================================== */}
 
       <style>{`
         @keyframes heroReveal {

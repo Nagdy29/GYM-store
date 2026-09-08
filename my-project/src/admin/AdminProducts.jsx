@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   AlertTriangle,
@@ -21,7 +26,9 @@ import {
   updateProductInFirebase,
 } from "../firebase/products";
 
-import { categories } from "../data/products";
+import {
+  getCategoriesFromFirebase,
+} from "../firebase/categories";
 
 const emptyForm = {
   name: "",
@@ -42,18 +49,22 @@ const emptyForm = {
  * ==========================================
  * المنتجات التجريبية
  * ==========================================
+ *
+ * مهم:
+ * category هنا عبارة عن slug قديم
+ * والكود تحت هيحاول يطابقه مع Firebase.
  */
 
 const demoProducts = [
   {
-    name: "ZENGER T-Shirt Black",
+    name: "HIRAQL T-Shirt Black",
     description:
-      "تيشيرت رياضي أسود من ZENGER مناسب للتمرين والجيم والاستخدام اليومي، بخامة مريحة وتصميم بسيط.",
+      "تيشيرت رياضي أسود من HIRAQL مناسب للتمرين والجيم والاستخدام اليومي، بخامة مريحة وتصميم بسيط.",
     price: 450,
     oldPrice: 550,
     discount: 18,
     category: "tshirts",
-    categoryName: "تيشيرتات",
+    categoryName: "تيشيرتات جيم",
     image:
       "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80",
     sizes: ["S", "M", "L", "XL"],
@@ -62,14 +73,14 @@ const demoProducts = [
     stock: 25,
   },
   {
-    name: "ZENGER T-Shirt White",
+    name: "HIRAQL T-Shirt White",
     description:
-      "تيشيرت ZENGER أبيض بتصميم رياضي رايق، مناسب للجيم والتمرين والخروجات اليومية.",
+      "تيشيرت HIRAQL أبيض بتصميم رياضي رايق، مناسب للجيم والتمرين والخروجات اليومية.",
     price: 450,
     oldPrice: 520,
     discount: 13,
     category: "tshirts",
-    categoryName: "تيشيرتات",
+    categoryName: "تيشيرتات جيم",
     image:
       "https://images.unsplash.com/photo-1583743814966-8936f37f4678?auto=format&fit=crop&w=900&q=80",
     sizes: ["S", "M", "L", "XL"],
@@ -78,14 +89,14 @@ const demoProducts = [
     stock: 20,
   },
   {
-    name: "ZENGER Gym Pants Black",
+    name: "HIRAQL Gym Pants Black",
     description:
       "بنطلون جيم أسود مريح للحركة والتمرين، مناسب للتمارين اليومية والجري.",
     price: 650,
     oldPrice: 800,
     discount: 19,
     category: "pants",
-    categoryName: "بنطلونات",
+    categoryName: "بنطلونات جيم",
     image:
       "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?auto=format&fit=crop&w=900&q=80",
     sizes: ["M", "L", "XL", "XXL"],
@@ -94,14 +105,14 @@ const demoProducts = [
     stock: 15,
   },
   {
-    name: "ZENGER Sport Shorts",
+    name: "HIRAQL Gym Shorts",
     description:
       "شورت رياضي خفيف ومريح، مناسب للجيم والتمارين والحركة اليومية.",
     price: 350,
     oldPrice: 450,
     discount: 22,
     category: "shorts",
-    categoryName: "شورتات",
+    categoryName: "شورتات جيم",
     image:
       "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=900&q=80",
     sizes: ["M", "L", "XL"],
@@ -110,14 +121,14 @@ const demoProducts = [
     stock: 30,
   },
   {
-    name: "ZENGER Gym Bag",
+    name: "HIRAQL Gym Bag",
     description:
       "شنطة جيم عملية بتصميم رياضي، مناسبة لحمل الملابس والأدوات والمستلزمات اليومية.",
     price: 550,
     oldPrice: 700,
     discount: 21,
-    category: "accessories",
-    categoryName: "إكسسوارات",
+    category: "bags",
+    categoryName: "شنط جيم",
     image:
       "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=80",
     sizes: [],
@@ -141,7 +152,7 @@ function normalizeImageUrl(value) {
   }
 
   /*
-   * Google Drive
+   * Google Drive file
    */
 
   const driveFileMatch = url.match(
@@ -160,7 +171,9 @@ function normalizeImageUrl(value) {
     const parsedUrl = new URL(url);
 
     if (
-      parsedUrl.hostname.includes("drive.google.com")
+      parsedUrl.hostname.includes(
+        "drive.google.com"
+      )
     ) {
       const driveId =
         parsedUrl.searchParams.get("id");
@@ -178,7 +191,9 @@ function normalizeImageUrl(value) {
    */
 
   if (
-    url.includes("drive.google.com/uc") &&
+    url.includes(
+      "drive.google.com/uc"
+    ) &&
     url.includes("id=")
   ) {
     try {
@@ -200,7 +215,9 @@ function normalizeImageUrl(value) {
    */
 
   if (
-    url.includes("drive.google.com/open")
+    url.includes(
+      "drive.google.com/open"
+    )
   ) {
     try {
       const parsedUrl = new URL(url);
@@ -244,20 +261,18 @@ function getImageUrlType(value) {
   }
 
   if (
-    url.includes("drive.google.com")
+    url.includes(
+      "drive.google.com"
+    )
   ) {
     return "drive";
   }
 
-  if (
-    url.includes("i.ibb.co")
-  ) {
+  if (url.includes("i.ibb.co")) {
     return "direct";
   }
 
-  if (
-    url.includes("ibb.co/")
-  ) {
+  if (url.includes("ibb.co/")) {
     return "imgbb-page";
   }
 
@@ -271,18 +286,35 @@ function getImageUrlType(value) {
  */
 
 function AdminProducts() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] =
+    useState([]);
 
-  const [search, setSearch] = useState("");
+  const [categories, setCategories] =
+    useState([]);
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [addingDemo, setAddingDemo] = useState(false);
+  const [search, setSearch] =
+    useState("");
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [loading, setLoading] =
+    useState(true);
 
-  const [showModal, setShowModal] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [addingDemo, setAddingDemo] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [success, setSuccess] =
+    useState("");
+
+  const [showModal, setShowModal] =
+    useState(false);
 
   const [editingProduct, setEditingProduct] =
     useState(null);
@@ -290,7 +322,8 @@ function AdminProducts() {
   const [deleteProduct, setDeleteProduct] =
     useState(null);
 
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] =
+    useState(emptyForm);
 
   /*
    * ==========================================
@@ -298,32 +331,140 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const loadProducts = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const loadProducts = useCallback(
+    async () => {
+      try {
+        setLoading(true);
+        setError("");
 
-      const firebaseProducts =
-        await getProductsFromFirebase();
+        const firebaseProducts =
+          await getProductsFromFirebase();
 
-      setProducts(firebaseProducts);
-    } catch (error) {
-      console.error(
-        "Firebase products error:",
-        error
-      );
+        setProducts(
+          Array.isArray(firebaseProducts)
+            ? firebaseProducts
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "Firebase products error:",
+          error
+        );
 
-      setError(
-        "حصل خطأ في تحميل المنتجات من Firebase. اتأكد إن Firestore متفعل وقواعد الوصول مظبوطة."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        setError(
+          "حصل خطأ في تحميل المنتجات من Firebase. اتأكد إن Firestore متفعل وقواعد الوصول مظبوطة."
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  /*
+   * ==========================================
+   * تحميل الأقسام من Firebase
+   * ==========================================
+   */
+
+  const loadCategories =
+    useCallback(async () => {
+      try {
+        setCategoriesLoading(true);
+
+        const firebaseCategories =
+          await getCategoriesFromFirebase();
+
+        setCategories(
+          Array.isArray(
+            firebaseCategories
+          )
+            ? firebaseCategories
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "Firebase categories error:",
+          error
+        );
+
+        setCategories([]);
+
+        setError(
+          "حصل خطأ في تحميل الأقسام من Firebase. اتأكد إن الأقسام موجودة وقواعد Firestore مظبوطة."
+        );
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }, []);
+
+  /*
+   * ==========================================
+   * تحميل كل البيانات
+   * ==========================================
+   */
 
   useEffect(() => {
     loadProducts();
-  }, []);
+    loadCategories();
+  }, [
+    loadProducts,
+    loadCategories,
+  ]);
+
+  /*
+   * ==========================================
+   * مطابقة قسم تجريبي مع Firebase
+   * ==========================================
+   */
+
+  const findDemoCategory = (
+    demoProduct
+  ) => {
+    const demoCategory =
+      String(
+        demoProduct.category || ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const demoCategoryName =
+      String(
+        demoProduct.categoryName ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+    return categories.find(
+      (category) => {
+        const id = String(
+          category.id || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const slug = String(
+          category.slug || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const name = String(
+          category.name || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        return (
+          id === demoCategory ||
+          slug === demoCategory ||
+          name === demoCategory ||
+          name === demoCategoryName
+        );
+      }
+    );
+  };
 
   /*
    * ==========================================
@@ -331,49 +472,96 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const handleAddDemoProducts = async () => {
-    if (addingDemo || saving) {
-      return;
-    }
-
-    try {
-      setAddingDemo(true);
-      setError("");
-      setSuccess("");
-
-      /*
-       * بنضيف المنتجات واحد واحد
-       * علشان كل منتج ياخد Document ID
-       * خاص بيه من Firebase.
-       */
-
-      for (const product of demoProducts) {
-        await addProductToFirebase({
-          ...product,
-          image: normalizeImageUrl(
-            product.image
-          ),
-        });
+  const handleAddDemoProducts =
+    async () => {
+      if (
+        addingDemo ||
+        saving
+      ) {
+        return;
       }
 
-      await loadProducts();
+      if (
+        categories.length === 0
+      ) {
+        setError(
+          "لازم تضيف الأقسام من لوحة التحكم الأول قبل إضافة المنتجات التجريبية."
+        );
 
-      setSuccess(
-        "تم إضافة 5 منتجات تجريبية بنجاح ✅ تقدر تعدل أو تمسح أي منتج منهم."
-      );
-    } catch (error) {
-      console.error(
-        "Add demo products error:",
-        error
-      );
+        return;
+      }
 
-      setError(
-        "حصل خطأ أثناء إضافة المنتجات التجريبية. اتأكد من اتصال Firebase وقواعد Firestore."
-      );
-    } finally {
-      setAddingDemo(false);
-    }
-  };
+      try {
+        setAddingDemo(true);
+        setError("");
+        setSuccess("");
+
+        let addedCount = 0;
+        let skippedCount = 0;
+
+        for (const product of demoProducts) {
+          const firebaseCategory =
+            findDemoCategory(
+              product
+            );
+
+          if (!firebaseCategory) {
+            console.warn(
+              "Demo category not found:",
+              product.category,
+              product.categoryName
+            );
+
+            skippedCount += 1;
+            continue;
+          }
+
+          await addProductToFirebase({
+            ...product,
+
+            category:
+              firebaseCategory.id,
+
+            categoryName:
+              firebaseCategory.name,
+
+            image:
+              normalizeImageUrl(
+                product.image
+              ),
+          });
+
+          addedCount += 1;
+        }
+
+        await loadProducts();
+
+        if (addedCount === 0) {
+          setError(
+            "ملقيناش أي قسم مطابق للمنتجات التجريبية. أضف الأقسام المطلوبة من Firebase الأول."
+          );
+        } else {
+          setSuccess(
+            `تم إضافة ${addedCount} منتجات تجريبية بنجاح ✅${
+              skippedCount > 0
+                ? ` وتم تخطي ${skippedCount} بسبب عدم وجود القسم المطابق.`
+                : ""
+            }`
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Add demo products error:",
+          error
+        );
+
+        setError(
+          "حصل خطأ أثناء إضافة المنتجات التجريبية. اتأكد من اتصال Firebase وقواعد Firestore."
+        );
+      } finally {
+        setAddingDemo(false);
+      }
+    };
 
   /*
    * ==========================================
@@ -381,30 +569,54 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const filteredProducts = useMemo(() => {
-    const value = search
-      .trim()
-      .toLowerCase();
+  const filteredProducts =
+    useMemo(() => {
+      const value = search
+        .trim()
+        .toLowerCase();
 
-    if (!value) {
-      return products;
-    }
+      if (!value) {
+        return products;
+      }
 
-    return products.filter((product) => {
-      const name = String(
-        product.name || ""
-      ).toLowerCase();
+      return products.filter(
+        (product) => {
+          const name = String(
+            product.name || ""
+          ).toLowerCase();
 
-      const categoryName = String(
-        product.categoryName || ""
-      ).toLowerCase();
+          const categoryName =
+            String(
+              product.categoryName ||
+                ""
+            ).toLowerCase();
 
-      return (
-        name.includes(value) ||
-        categoryName.includes(value)
+          const category =
+            categories.find(
+              (item) =>
+                item.id ===
+                product.category
+            );
+
+          const firebaseCategoryName =
+            String(
+              category?.name || ""
+            ).toLowerCase();
+
+          return (
+            name.includes(value) ||
+            categoryName.includes(value) ||
+            firebaseCategoryName.includes(
+              value
+            )
+          );
+        }
       );
-    });
-  }, [products, search]);
+    }, [
+      products,
+      categories,
+      search,
+    ]);
 
   /*
    * ==========================================
@@ -414,7 +626,11 @@ function AdminProducts() {
 
   const handleOpenAdd = () => {
     setEditingProduct(null);
-    setForm(emptyForm);
+
+    setForm({
+      ...emptyForm,
+    });
+
     setError("");
     setSuccess("");
     setShowModal(true);
@@ -426,35 +642,74 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const handleOpenEdit = (product) => {
-    setEditingProduct(product);
+  const handleOpenEdit =
+    (product) => {
+      setEditingProduct(product);
 
-    setForm({
-      name: product.name || "",
-      description: product.description || "",
-      price: product.price ?? "",
-      oldPrice: product.oldPrice ?? "",
-      discount: product.discount ?? "",
-      category: product.category || "",
-      categoryName: product.categoryName || "",
-      image: product.image || "",
+      const firebaseCategory =
+        categories.find(
+          (category) =>
+            category.id ===
+            product.category
+        );
 
-      sizes: Array.isArray(product.sizes)
-        ? product.sizes.join(", ")
-        : "",
+      setForm({
+        name:
+          product.name || "",
 
-      colors: Array.isArray(product.colors)
-        ? product.colors.join(", ")
-        : "",
+        description:
+          product.description ||
+          "",
 
-      badge: product.badge || "",
-      stock: product.stock ?? "",
-    });
+        price:
+          product.price ?? "",
 
-    setError("");
-    setSuccess("");
-    setShowModal(true);
-  };
+        oldPrice:
+          product.oldPrice ?? "",
+
+        discount:
+          product.discount ?? "",
+
+        category:
+          product.category || "",
+
+        categoryName:
+          firebaseCategory?.name ||
+          product.categoryName ||
+          "",
+
+        image:
+          product.image || "",
+
+        sizes:
+          Array.isArray(
+            product.sizes
+          )
+            ? product.sizes.join(
+                ", "
+              )
+            : "",
+
+        colors:
+          Array.isArray(
+            product.colors
+          )
+            ? product.colors.join(
+                ", "
+              )
+            : "",
+
+        badge:
+          product.badge || "",
+
+        stock:
+          product.stock ?? "",
+      });
+
+      setError("");
+      setSuccess("");
+      setShowModal(true);
+    };
 
   /*
    * ==========================================
@@ -469,7 +724,11 @@ function AdminProducts() {
 
     setShowModal(false);
     setEditingProduct(null);
-    setForm(emptyForm);
+
+    setForm({
+      ...emptyForm,
+    });
+
     setError("");
     setSuccess("");
   };
@@ -480,14 +739,21 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
+  const handleChange = (
+    event
+  ) => {
+    const {
+      name,
+      value,
+    } = event.target;
 
     setForm((current) => ({
       ...current,
       [name]:
         name === "image"
-          ? normalizeImageUrl(value)
+          ? normalizeImageUrl(
+              value
+            )
           : value,
     }));
 
@@ -498,25 +764,34 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * اختيار القسم
+   * اختيار القسم من Firebase
    * ==========================================
    */
 
-  const handleCategoryChange = (event) => {
-    const categoryId = event.target.value;
+  const handleCategoryChange = (
+    event
+  ) => {
+    const categoryId =
+      event.target.value;
 
     const selectedCategory =
       categories.find(
         (category) =>
-          category.id === categoryId
+          category.id ===
+          categoryId
       );
 
     setForm((current) => ({
       ...current,
-      category: categoryId,
+      category:
+        categoryId,
+
       categoryName:
-        selectedCategory?.name || "",
+        selectedCategory?.name ||
+        "",
     }));
+
+    setError("");
   };
 
   /*
@@ -525,26 +800,31 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const convertToArray = (value) => {
+  const convertToArray = (
+    value
+  ) => {
     return String(value || "")
       .split(",")
-      .map((item) => item.trim())
+      .map((item) =>
+        item.trim()
+      )
       .filter(Boolean);
   };
 
   /*
    * ==========================================
-   * فتح موقع رفع الصور
+   * رفع الصور
    * ==========================================
    */
 
-  const handleOpenImageUploader = () => {
-    window.open(
-      "https://imgbb.com/",
-      "_blank",
-      "noopener,noreferrer"
-    );
-  };
+  const handleOpenImageUploader =
+    () => {
+      window.open(
+        "https://imgbb.com/",
+        "_blank",
+        "noopener,noreferrer"
+      );
+    };
 
   /*
    * ==========================================
@@ -582,6 +862,17 @@ function AdminProducts() {
       return "اختار قسم المنتج.";
     }
 
+    const selectedCategory =
+      categories.find(
+        (category) =>
+          category.id ===
+          form.category
+      );
+
+    if (!selectedCategory) {
+      return "القسم المختار غير موجود في Firebase. حدّث الأقسام وجرب تاني.";
+    }
+
     if (
       form.stock !== "" &&
       Number(form.stock) < 0
@@ -598,8 +889,9 @@ function AdminProducts() {
     }
 
     if (
-      getImageUrlType(form.image) ===
-      "imgbb-page"
+      getImageUrlType(
+        form.image
+      ) === "imgbb-page"
     ) {
       return (
         "رابط ImgBB ده رابط صفحة مش رابط الصورة. انسخ Direct Link اللي بيبدأ بـ https://i.ibb.co/"
@@ -615,52 +907,78 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (
+    event
+  ) => {
     event.preventDefault();
 
     const validationError =
       validateForm();
 
     if (validationError) {
-      setError(validationError);
+      setError(
+        validationError
+      );
       return;
     }
 
+    const selectedCategory =
+      categories.find(
+        (category) =>
+          category.id ===
+          form.category
+      );
+
     const normalizedImage =
-      normalizeImageUrl(form.image);
+      normalizeImageUrl(
+        form.image
+      );
 
     const productData = {
-      name: form.name,
-      description: form.description,
+      name:
+        form.name.trim(),
 
-      price: Number(form.price),
+      description:
+        form.description.trim(),
+
+      price:
+        Number(form.price),
 
       oldPrice:
         form.oldPrice === ""
           ? 0
-          : Number(form.oldPrice),
+          : Number(
+              form.oldPrice
+            ),
 
       discount:
         form.discount === ""
           ? 0
-          : Number(form.discount),
+          : Number(
+              form.discount
+            ),
 
-      category: form.category,
+      category:
+        selectedCategory.id,
 
       categoryName:
-        form.categoryName,
+        selectedCategory.name,
 
-      image: normalizedImage,
+      image:
+        normalizedImage,
 
-      sizes: convertToArray(
-        form.sizes
-      ),
+      sizes:
+        convertToArray(
+          form.sizes
+        ),
 
-      colors: convertToArray(
-        form.colors
-      ),
+      colors:
+        convertToArray(
+          form.colors
+        ),
 
-      badge: form.badge,
+      badge:
+        form.badge.trim(),
 
       stock:
         form.stock === ""
@@ -696,8 +1014,14 @@ function AdminProducts() {
 
       setTimeout(() => {
         setShowModal(false);
-        setEditingProduct(null);
-        setForm(emptyForm);
+        setEditingProduct(
+          null
+        );
+
+        setForm({
+          ...emptyForm,
+        });
+
         setSuccess("");
       }, 800);
     } catch (error) {
@@ -720,43 +1044,49 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const handleDelete = async () => {
-    if (!deleteProduct) {
-      return;
-    }
+  const handleDelete =
+    async () => {
+      if (!deleteProduct) {
+        return;
+      }
 
-    try {
-      setError("");
-      setSuccess("");
+      try {
+        setError("");
+        setSuccess("");
 
-      await deleteProductFromFirebase(
-        deleteProduct.id
-      );
+        await deleteProductFromFirebase(
+          deleteProduct.id
+        );
 
-      setProducts((currentProducts) =>
-        currentProducts.filter(
-          (product) =>
-            product.id !==
-            deleteProduct.id
-        )
-      );
+        setProducts(
+          (
+            currentProducts
+          ) =>
+            currentProducts.filter(
+              (product) =>
+                product.id !==
+                deleteProduct.id
+            )
+        );
 
-      setSuccess(
-        "تم حذف المنتج بنجاح 🗑️"
-      );
-    } catch (error) {
-      console.error(
-        "Delete product error:",
-        error
-      );
+        setSuccess(
+          "تم حذف المنتج بنجاح 🗑️"
+        );
+      } catch (error) {
+        console.error(
+          "Delete product error:",
+          error
+        );
 
-      setError(
-        "حصل خطأ أثناء حذف المنتج."
-      );
-    } finally {
-      setDeleteProduct(null);
-    }
-  };
+        setError(
+          "حصل خطأ أثناء حذف المنتج."
+        );
+      } finally {
+        setDeleteProduct(
+          null
+        );
+      }
+    };
 
   /*
    * ==========================================
@@ -765,13 +1095,13 @@ function AdminProducts() {
    */
 
   const imageType =
-    getImageUrlType(form.image);
+    getImageUrlType(
+      form.image
+    );
 
   return (
-    <div>
-      {/* ======================================
-          HEADER
-      ====================================== */}
+    <div dir="rtl">
+      {/* HEADER */}
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
@@ -784,42 +1114,12 @@ function AdminProducts() {
           </h1>
 
           <p className="mt-2 text-sm text-zinc-500">
-            إدارة المنتجات الموجودة في
-            المتجر من Firebase.
+            إدارة المنتجات والأقسام من
+            Firebase.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {/* إضافة منتجات تجريبية */}
-
-          {/* <button
-            type="button"
-            onClick={
-              handleAddDemoProducts
-            }
-            disabled={
-              addingDemo ||
-              saving ||
-              loading
-            }
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#39ff14]/50 bg-[#39ff14]/10 px-4 text-sm font-black text-black transition-all hover:-translate-y-0.5 hover:bg-[#39ff14]/20 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {addingDemo ? (
-              <LoaderCircle
-                size={17}
-                className="animate-spin"
-              />
-            ) : (
-              <FlaskConical size={17} />
-            )}
-
-            {addingDemo
-              ? "جاري الإضافة..."
-              : "إضافة 5 تجريبي"}
-          </button> */}
-
-          {/* تحديث */}
-
           <button
             type="button"
             onClick={loadProducts}
@@ -841,11 +1141,11 @@ function AdminProducts() {
             تحديث
           </button>
 
-          {/* إضافة منتج */}
-
           <button
             type="button"
-            onClick={handleOpenAdd}
+            onClick={
+              handleOpenAdd
+            }
             className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-black px-5 text-sm font-black text-white transition-all hover:-translate-y-0.5 hover:bg-zinc-800"
           >
             <Plus size={18} />
@@ -855,33 +1155,7 @@ function AdminProducts() {
         </div>
       </div>
 
-      {/* ======================================
-          DEMO INFO
-      ====================================== */}
-{/* 
-      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-[#39ff14]/30 bg-[#39ff14]/5 p-4">
-        <FlaskConical
-          size={20}
-          className="mt-0.5 shrink-0 text-[#16a34a]"
-        />
-
-        <div>
-          <p className="text-sm font-black text-zinc-900">
-            وضع التجربة
-          </p>
-
-          <p className="mt-1 text-xs font-bold leading-6 text-zinc-500">
-            زرار «إضافة 5 تجريبي» بيضيف
-            5 منتجات حقيقية في Firestore.
-            تقدر بعد كده تعدلهم أو تمسحهم
-            عادي من هنا.
-          </p>
-        </div>
-      </div> */}
-
-      {/* ======================================
-          ALERTS
-      ====================================== */}
+      {/* ALERTS */}
 
       {error && (
         <div className="mt-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold leading-6 text-red-700">
@@ -900,9 +1174,7 @@ function AdminProducts() {
         </div>
       )}
 
-      {/* ======================================
-          SEARCH
-      ====================================== */}
+      {/* SEARCH */}
 
       <div className="relative mt-7">
         <Search
@@ -913,16 +1185,64 @@ function AdminProducts() {
         <input
           value={search}
           onChange={(event) =>
-            setSearch(event.target.value)
+            setSearch(
+              event.target.value
+            )
           }
-          placeholder="ابحث عن منتج..."
+          placeholder="ابحث عن منتج أو قسم..."
           className="h-14 w-full rounded-2xl border border-zinc-200 bg-white pr-12 pl-4 text-sm font-bold outline-none transition focus:border-black"
         />
       </div>
 
-      {/* ======================================
-          LOADING
-      ====================================== */}
+      {/* CATEGORY STATUS */}
+
+      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black text-[#39ff14]">
+            <FlaskConical size={16} />
+          </div>
+
+          <div>
+            <p className="text-xs font-black text-zinc-900">
+              الأقسام
+            </p>
+
+            <p className="text-[10px] font-bold text-zinc-400">
+              مصدرها Firebase
+            </p>
+          </div>
+        </div>
+
+        <div className="mr-auto flex items-center gap-2">
+          <span className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-black text-zinc-700">
+            {categories.length} قسم
+          </span>
+
+          <button
+            type="button"
+            onClick={
+              loadCategories
+            }
+            disabled={
+              categoriesLoading
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 text-[11px] font-black text-zinc-700 transition hover:border-black hover:bg-zinc-50 disabled:opacity-50"
+          >
+            <RefreshCw
+              size={13}
+              className={
+                categoriesLoading
+                  ? "animate-spin"
+                  : ""
+              }
+            />
+
+            تحديث الأقسام
+          </button>
+        </div>
+      </div>
+
+      {/* LOADING */}
 
       {loading && (
         <div className="mt-6 rounded-3xl border border-zinc-200 bg-white p-16 text-center">
@@ -937,111 +1257,129 @@ function AdminProducts() {
         </div>
       )}
 
-      {/* ======================================
-          MOBILE
-      ====================================== */}
+      {/* MOBILE */}
 
       {!loading &&
         filteredProducts.length > 0 && (
           <div className="mt-6 grid gap-4 md:hidden">
             {filteredProducts.map(
-              (product) => (
-                <div
-                  key={product.id}
-                  className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex gap-4">
-                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-zinc-100">
-                      {product.image ? (
-                        <img
-                          src={product.image}
-                          alt={
-                            product.name
-                          }
-                          className="h-full w-full object-cover"
-                          onError={(event) => {
-                            event.currentTarget.style.display =
-                              "none";
-                          }}
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center">
-                          <ImageOff
-                            size={22}
-                            className="text-zinc-300"
+              (product) => {
+                const firebaseCategory =
+                  categories.find(
+                    (category) =>
+                      category.id ===
+                      product.category
+                  );
+
+                return (
+                  <div
+                    key={product.id}
+                    className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex gap-4">
+                      <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-zinc-100">
+                        {product.image ? (
+                          <img
+                            src={
+                              product.image
+                            }
+                            alt={
+                              product.name
+                            }
+                            className="h-full w-full object-cover"
+                            onError={(
+                              event
+                            ) => {
+                              event.currentTarget.style.display =
+                                "none";
+                            }}
                           />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-bold text-zinc-400">
-                        {product.categoryName ||
-                          "بدون قسم"}
-                      </p>
-
-                      <h3 className="mt-1 line-clamp-2 text-sm font-black">
-                        {product.name}
-                      </h3>
-
-                      <p className="mt-2 font-black">
-                        {Number(
-                          product.price || 0
-                        ).toLocaleString(
-                          "ar-EG"
-                        )}{" "}
-                        جنيه
-                      </p>
-
-                      <p className="mt-1 text-xs font-bold text-zinc-400">
-                        المخزون:{" "}
-                        {Number(
-                          product.stock || 0
-                        ).toLocaleString(
-                          "ar-EG"
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <ImageOff
+                              size={
+                                22
+                              }
+                              className="text-zinc-300"
+                            />
+                          </div>
                         )}
-                      </p>
+                      </div>
 
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleOpenEdit(
-                              product
-                            )
-                          }
-                          className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black transition hover:bg-black hover:text-white"
-                        >
-                          <Edit3 size={14} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold text-zinc-400">
+                          {firebaseCategory?.name ||
+                            product.categoryName ||
+                            "بدون قسم"}
+                        </p>
 
-                          تعديل
-                        </button>
+                        <h3 className="mt-1 line-clamp-2 text-sm font-black">
+                          {product.name}
+                        </h3>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setDeleteProduct(
-                              product
-                            )
-                          }
-                          className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-600 transition hover:bg-red-100"
-                        >
-                          <Trash2 size={14} />
+                        <p className="mt-2 font-black">
+                          {Number(
+                            product.price ||
+                              0
+                          ).toLocaleString(
+                            "ar-EG"
+                          )}{" "}
+                          جنيه
+                        </p>
 
-                          حذف
-                        </button>
+                        <p className="mt-1 text-xs font-bold text-zinc-400">
+                          المخزون:{" "}
+                          {Number(
+                            product.stock ||
+                              0
+                          ).toLocaleString(
+                            "ar-EG"
+                          )}
+                        </p>
+
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleOpenEdit(
+                                product
+                              )
+                            }
+                            className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black transition hover:bg-black hover:text-white"
+                          >
+                            <Edit3
+                              size={14}
+                            />
+
+                            تعديل
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDeleteProduct(
+                                product
+                              )
+                            }
+                            className="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-black text-red-600 transition hover:bg-red-100"
+                          >
+                            <Trash2
+                              size={14}
+                            />
+
+                            حذف
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )
+                );
+              }
             )}
           </div>
         )}
 
-      {/* ======================================
-          DESKTOP TABLE
-      ====================================== */}
+      {/* DESKTOP TABLE */}
 
       {!loading &&
         filteredProducts.length > 0 && (
@@ -1078,107 +1416,136 @@ function AdminProducts() {
 
                 <tbody>
                   {filteredProducts.map(
-                    (product) => (
-                      <tr
-                        key={product.id}
-                        className="border-t border-zinc-100 transition hover:bg-zinc-50"
-                      >
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
-                              {product.image ? (
-                                <img
-                                  src={
-                                    product.image
-                                  }
-                                  alt={
-                                    product.name
-                                  }
-                                  className="h-full w-full object-cover"
-                                  onError={(event) => {
-                                    event.currentTarget.style.display =
-                                      "none";
-                                  }}
-                                />
-                              ) : (
-                                <div className="flex h-full items-center justify-center">
-                                  <ImageOff
-                                    size={20}
-                                    className="text-zinc-300"
+                    (product) => {
+                      const firebaseCategory =
+                        categories.find(
+                          (category) =>
+                            category.id ===
+                            product.category
+                        );
+
+                      return (
+                        <tr
+                          key={
+                            product.id
+                          }
+                          className="border-t border-zinc-100 transition hover:bg-zinc-50"
+                        >
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
+                                {product.image ? (
+                                  <img
+                                    src={
+                                      product.image
+                                    }
+                                    alt={
+                                      product.name
+                                    }
+                                    className="h-full w-full object-cover"
+                                    onError={(
+                                      event
+                                    ) => {
+                                      event.currentTarget.style.display =
+                                        "none";
+                                    }}
                                   />
-                                </div>
-                              )}
+                                ) : (
+                                  <div className="flex h-full items-center justify-center">
+                                    <ImageOff
+                                      size={
+                                        20
+                                      }
+                                      className="text-zinc-300"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+
+                              <span className="max-w-xs text-sm font-black">
+                                {
+                                  product.name
+                                }
+                              </span>
                             </div>
+                          </td>
 
-                            <span className="max-w-xs text-sm font-black">
-                              {product.name}
-                            </span>
-                          </div>
-                        </td>
+                          <td className="px-5 py-4 text-xs text-zinc-500">
+                            {firebaseCategory?.name ||
+                              product.categoryName ||
+                              "بدون قسم"}
+                          </td>
 
-                        <td className="px-5 py-4 text-xs text-zinc-500">
-                          {product.categoryName ||
-                            "بدون قسم"}
-                        </td>
+                          <td className="px-5 py-4 text-sm font-black">
+                            {Number(
+                              product.price ||
+                                0
+                            ).toLocaleString(
+                              "ar-EG"
+                            )}{" "}
+                            جنيه
+                          </td>
 
-                        <td className="px-5 py-4 text-sm font-black">
-                          {Number(
-                            product.price || 0
-                          ).toLocaleString(
-                            "ar-EG"
-                          )}{" "}
-                          جنيه
-                        </td>
+                          <td className="px-5 py-4 text-sm font-bold">
+                            {Number(
+                              product.stock ||
+                                0
+                            ).toLocaleString(
+                              "ar-EG"
+                            )}
+                          </td>
 
-                        <td className="px-5 py-4 text-sm font-bold">
-                          {Number(
-                            product.stock || 0
-                          ).toLocaleString(
-                            "ar-EG"
-                          )}
-                        </td>
+                          <td className="px-5 py-4 text-sm font-bold">
+                            ★{" "}
+                            {Number(
+                              product.rating ||
+                                0
+                            ).toLocaleString(
+                              "ar-EG"
+                            )}
+                          </td>
 
-                        <td className="px-5 py-4 text-sm font-bold">
-                          ★{" "}
-                          {Number(
-                            product.rating || 0
-                          ).toLocaleString(
-                            "ar-EG"
-                          )}
-                        </td>
+                          <td className="px-5 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleOpenEdit(
+                                    product
+                                  )
+                                }
+                                className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2 text-xs font-black transition-all hover:bg-black hover:text-white"
+                              >
+                                <Edit3
+                                  size={
+                                    14
+                                  }
+                                />
 
-                        <td className="px-5 py-4">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleOpenEdit(
-                                  product
-                                )
-                              }
-                              className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2 text-xs font-black transition-all hover:bg-black hover:text-white"
-                            >
-                              <Edit3 size={14} />
+                                تعديل
+                              </button>
 
-                              تعديل
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setDeleteProduct(
-                                  product
-                                )
-                              }
-                              className="inline-flex items-center justify-center rounded-xl bg-red-50 px-3 py-2 text-red-500 transition hover:bg-red-100"
-                              title="حذف المنتج"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDeleteProduct(
+                                    product
+                                  )
+                                }
+                                className="inline-flex items-center justify-center rounded-xl bg-red-50 px-3 py-2 text-red-500 transition hover:bg-red-100"
+                                title="حذف المنتج"
+                              >
+                                <Trash2
+                                  size={
+                                    15
+                                  }
+                                />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
                   )}
                 </tbody>
               </table>
@@ -1186,12 +1553,11 @@ function AdminProducts() {
           </div>
         )}
 
-      {/* ======================================
-          EMPTY
-      ====================================== */}
+      {/* EMPTY */}
 
       {!loading &&
-        filteredProducts.length === 0 && (
+        filteredProducts.length ===
+          0 && (
           <div className="mt-6 rounded-3xl border border-dashed border-zinc-300 bg-white p-12 text-center">
             <Search
               size={35}
@@ -1208,8 +1574,13 @@ function AdminProducts() {
               <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <button
                   type="button"
-                  onClick={handleAddDemoProducts}
-                  disabled={addingDemo}
+                  onClick={
+                    handleAddDemoProducts
+                  }
+                  disabled={
+                    addingDemo ||
+                    categoriesLoading
+                  }
                   className="inline-flex items-center gap-2 rounded-xl bg-[#39ff14] px-5 py-3 text-sm font-black text-black transition hover:bg-[#32e611] disabled:opacity-50"
                 >
                   {addingDemo ? (
@@ -1228,7 +1599,9 @@ function AdminProducts() {
 
                 <button
                   type="button"
-                  onClick={handleOpenAdd}
+                  onClick={
+                    handleOpenAdd
+                  }
                   className="inline-flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-black text-white"
                 >
                   <Plus size={17} />
@@ -1240,14 +1613,12 @@ function AdminProducts() {
           </div>
         )}
 
-      {/* ======================================
-          ADD / EDIT MODAL
-      ====================================== */}
+      {/* ADD / EDIT MODAL */}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-            {/* Modal Header */}
+            {/* MODAL HEADER */}
 
             <div className="flex items-center justify-between border-b border-zinc-100 p-5">
               <div>
@@ -1258,8 +1629,7 @@ function AdminProducts() {
                 </h2>
 
                 <p className="mt-1 text-xs text-zinc-500">
-                  البيانات هتتحفظ مباشرة في
-                  Firebase Firestore.
+                  البيانات هتتحفظ مباشرة في Firebase Firestore.
                 </p>
               </div>
 
@@ -1274,10 +1644,12 @@ function AdminProducts() {
               </button>
             </div>
 
-            {/* Modal Body */}
+            {/* MODAL FORM */}
 
             <form
-              onSubmit={handleSubmit}
+              onSubmit={
+                handleSubmit
+              }
               className="max-h-[calc(92vh-90px)] overflow-y-auto p-5"
             >
               {error && (
@@ -1303,8 +1675,10 @@ function AdminProducts() {
                   <input
                     name="name"
                     value={form.name}
-                    onChange={handleChange}
-                    placeholder="مثال: ZENGER T-Shirt Black"
+                    onChange={
+                      handleChange
+                    }
+                    placeholder="مثال: HIRAQL T-Shirt Black"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white"
                   />
                 </div>
@@ -1321,7 +1695,9 @@ function AdminProducts() {
                     value={
                       form.description
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     rows={4}
                     placeholder="اكتب وصف المنتج..."
                     className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white"
@@ -1340,7 +1716,9 @@ function AdminProducts() {
                     type="number"
                     min="0"
                     value={form.price}
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="500"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
@@ -1360,7 +1738,9 @@ function AdminProducts() {
                     value={
                       form.oldPrice
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="650"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
@@ -1381,7 +1761,9 @@ function AdminProducts() {
                     value={
                       form.discount
                     }
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="20"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
@@ -1399,7 +1781,9 @@ function AdminProducts() {
                     type="number"
                     min="0"
                     value={form.stock}
-                    onChange={handleChange}
+                    onChange={
+                      handleChange
+                    }
                     placeholder="10"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
@@ -1407,7 +1791,7 @@ function AdminProducts() {
 
                 {/* CATEGORY */}
 
-                <div>
+                <div className="sm:col-span-2">
                   <label className="mb-2 block text-sm font-black">
                     القسم
                   </label>
@@ -1419,14 +1803,26 @@ function AdminProducts() {
                     onChange={
                       handleCategoryChange
                     }
-                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
+                    disabled={
+                      categoriesLoading ||
+                      categories.length ===
+                        0
+                    }
+                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <option value="">
-                      اختار القسم
+                      {categoriesLoading
+                        ? "جاري تحميل الأقسام..."
+                        : categories.length ===
+                            0
+                          ? "مفيش أقسام في Firebase"
+                          : "اختار القسم"}
                     </option>
 
                     {categories.map(
-                      (category) => (
+                      (
+                        category
+                      ) => (
                         <option
                           key={
                             category.id
@@ -1435,11 +1831,22 @@ function AdminProducts() {
                             category.id
                           }
                         >
-                          {category.name}
+                          {
+                            category.name
+                          }
                         </option>
                       )
                     )}
                   </select>
+
+                  {form.category && (
+                    <p className="mt-2 text-[11px] font-bold text-green-600">
+                      ✅ القسم المختار:{" "}
+                      {
+                        form.categoryName
+                      }
+                    </p>
+                  )}
                 </div>
 
                 {/* BADGE */}
@@ -1451,8 +1858,12 @@ function AdminProducts() {
 
                   <input
                     name="badge"
-                    value={form.badge}
-                    onChange={handleChange}
+                    value={
+                      form.badge
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="جديد / الأكثر مبيعًا"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white"
                   />
@@ -1497,8 +1908,6 @@ function AdminProducts() {
                     </div>
                   </div>
 
-                  {/* IMAGE HELP */}
-
                   <div className="rounded-2xl border border-[#39ff14]/30 bg-[#39ff14]/5 p-4">
                     <p className="text-sm font-black text-zinc-900">
                       📸 طرق إضافة الصورة
@@ -1511,7 +1920,7 @@ function AdminProducts() {
                         </p>
 
                         <p>
-                          ارفع الصورة ثم انسخ
+                          ارفع الصورة ثم انسخ{" "}
                           <span className="mx-1 font-black text-green-600">
                             Direct Link
                           </span>
@@ -1534,8 +1943,7 @@ function AdminProducts() {
                         </p>
 
                         <p>
-                          خلي الصورة في Google
-                          Drive واضبط المشاركة على:
+                          خلي الصورة في Google Drive واضبط المشاركة على:
                         </p>
 
                         <p className="mt-1 font-black text-green-700">
@@ -1544,69 +1952,57 @@ function AdminProducts() {
                         </p>
 
                         <p className="mt-1">
-                          وبعدها الصق لينك المشاركة
-                          هنا، والكود هيحوله
-                          تلقائيًا لرابط عرض مباشر.
+                          وبعدها الصق لينك المشاركة هنا، والكود هيحوله تلقائيًا لرابط عرض مباشر.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* IMAGE INPUT */}
-
                   <div className="mt-3">
                     <input
                       name="image"
-                      value={form.image}
-                      onChange={handleChange}
+                      value={
+                        form.image
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="ImgBB أو Google Drive image URL"
                       className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white"
                     />
-
-                    {/* URL STATUS */}
 
                     {form.image && (
                       <div className="mt-2">
                         {imageType ===
                           "drive" && (
                           <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-bold leading-5 text-green-700">
-                            ✅ Google Drive —
-                            الكود هيحوّل الرابط
-                            تلقائيًا لرابط الصورة.
+                            ✅ Google Drive — الكود هيحوّل الرابط تلقائيًا لرابط الصورة.
                           </div>
                         )}
 
                         {imageType ===
                           "direct" && (
                           <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-bold leading-5 text-green-700">
-                            ✅ Direct Image URL —
-                            الرابط مناسب للعرض.
+                            ✅ Direct Image URL — الرابط مناسب للعرض.
                           </div>
                         )}
 
                         {imageType ===
                           "imgbb-page" && (
                           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold leading-5 text-red-700">
-                            ❌ ده رابط صفحة ImgBB
-                            وليس رابط الصورة.
-                            استخدم Direct Link
-                            الذي يبدأ بـ
-                            https://i.ibb.co/
+                            ❌ ده رابط صفحة ImgBB وليس رابط الصورة. استخدم Direct Link الذي يبدأ بـ https://i.ibb.co/
                           </div>
                         )}
 
                         {imageType ===
                           "other" && (
                           <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold leading-5 text-zinc-500">
-                            🔗 تم إدخال رابط —
-                            هنحاول عرضه مباشرة.
+                            🔗 تم إدخال رابط — هنحاول عرضه مباشرة.
                           </div>
                         )}
                       </div>
                     )}
                   </div>
-
-                  {/* PREVIEW */}
 
                   {form.image &&
                     imageType !==
@@ -1680,8 +2076,12 @@ function AdminProducts() {
 
                   <input
                     name="sizes"
-                    value={form.sizes}
-                    onChange={handleChange}
+                    value={
+                      form.sizes
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="S, M, L, XL"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
@@ -1700,8 +2100,12 @@ function AdminProducts() {
 
                   <input
                     name="colors"
-                    value={form.colors}
-                    onChange={handleChange}
+                    value={
+                      form.colors
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="أسود, أبيض"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
@@ -1728,7 +2132,12 @@ function AdminProducts() {
 
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={
+                    saving ||
+                    categoriesLoading ||
+                    categories.length ===
+                      0
+                  }
                   className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-black px-5 py-3.5 text-sm font-black text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {saving ? (
@@ -1756,9 +2165,7 @@ function AdminProducts() {
         </div>
       )}
 
-      {/* ======================================
-          DELETE MODAL
-      ====================================== */}
+      {/* DELETE MODAL */}
 
       {deleteProduct && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -1776,7 +2183,9 @@ function AdminProducts() {
             </p>
 
             <p className="mt-1 font-black text-zinc-950">
-              {deleteProduct.name}
+              {
+                deleteProduct.name
+              }
             </p>
 
             <p className="mt-2 text-xs text-red-500">
@@ -1787,7 +2196,9 @@ function AdminProducts() {
               <button
                 type="button"
                 onClick={() =>
-                  setDeleteProduct(null)
+                  setDeleteProduct(
+                    null
+                  )
                 }
                 className="flex-1 rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-black text-zinc-700 transition hover:bg-zinc-50"
               >
@@ -1796,7 +2207,9 @@ function AdminProducts() {
 
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={
+                  handleDelete
+                }
                 className="flex-1 rounded-2xl bg-red-500 px-4 py-3 text-sm font-black text-white transition hover:bg-red-600"
               >
                 حذف نهائي

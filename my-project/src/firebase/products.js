@@ -27,19 +27,75 @@ export async function getProductsFromFirebase() {
     PRODUCTS_COLLECTION
   );
 
-  const productsQuery = query(
-    productsRef,
-    orderBy("createdAt", "desc")
-  );
+  try {
+    /*
+     * نحاول الأول نجيب المنتجات مرتبة
+     * حسب تاريخ الإضافة.
+     */
 
-  const snapshot = await getDocs(
-    productsQuery
-  );
+    const productsQuery = query(
+      productsRef,
+      orderBy("createdAt", "desc")
+    );
 
-  return snapshot.docs.map((item) => ({
-    id: item.id,
-    ...item.data(),
-  }));
+    const snapshot =
+      await getDocs(productsQuery);
+
+    return snapshot.docs.map(
+      (item) => ({
+        id: item.id,
+        ...item.data(),
+      })
+    );
+  } catch (error) {
+    console.warn(
+      "Products ordered query failed, loading without orderBy:",
+      error
+    );
+
+    /*
+     * fallback
+     *
+     * لو فيه منتجات قديمة بدون createdAt
+     * أو حصلت مشكلة في orderBy،
+     * نجيب كل المنتجات عادي.
+     */
+
+    const snapshot =
+      await getDocs(productsRef);
+
+    const products =
+      snapshot.docs.map(
+        (item) => ({
+          id: item.id,
+          ...item.data(),
+        })
+      );
+
+    /*
+     * ترتيب يدوي من الأحدث للأقدم
+     * لو createdAt موجود.
+     */
+
+    products.sort(
+      (a, b) => {
+        const aSeconds =
+          a?.createdAt?.seconds ||
+          0;
+
+        const bSeconds =
+          b?.createdAt?.seconds ||
+          0;
+
+        return (
+          bSeconds -
+          aSeconds
+        );
+      }
+    );
+
+    return products;
+  }
 }
 
 /*
@@ -55,22 +111,33 @@ export async function getProductByIdFromFirebase(
     return null;
   }
 
-  const productRef = doc(
-    db,
-    PRODUCTS_COLLECTION,
-    productId
-  );
+  try {
+    const productRef =
+      doc(
+        db,
+        PRODUCTS_COLLECTION,
+        productId
+      );
 
-  const snapshot = await getDoc(productRef);
+    const snapshot =
+      await getDoc(productRef);
 
-  if (!snapshot.exists()) {
-    return null;
+    if (!snapshot.exists()) {
+      return null;
+    }
+
+    return {
+      id: snapshot.id,
+      ...snapshot.data(),
+    };
+  } catch (error) {
+    console.error(
+      "Get Product Error:",
+      error
+    );
+
+    throw error;
   }
-
-  return {
-    id: snapshot.id,
-    ...snapshot.data(),
-  };
 }
 
 /*
@@ -83,50 +150,83 @@ export async function addProductToFirebase(
   product
 ) {
   const productData = {
-    name: product.name?.trim() || "",
+    name:
+      String(
+        product?.name || ""
+      ).trim(),
 
     description:
-      product.description?.trim() || "",
+      String(
+        product?.description || ""
+      ).trim(),
 
-    price: Number(product.price) || 0,
+    price:
+      Number(product?.price) || 0,
 
     oldPrice:
-      Number(product.oldPrice) || 0,
+      Number(
+        product?.oldPrice
+      ) || 0,
 
     discount:
-      Number(product.discount) || 0,
-
-    category:
-      product.category || "",
-
-    categoryName:
-      product.categoryName || "",
+      Number(
+        product?.discount
+      ) || 0,
 
     /*
-    الصورة URL عادي
-    بدون Firebase Storage
-    */
+     * هنا بنحفظ Firebase Category ID
+     */
+
+    category:
+      String(
+        product?.category || ""
+      ).trim(),
+
+    categoryName:
+      String(
+        product?.categoryName || ""
+      ).trim(),
+
+    /*
+     * رابط الصورة
+     */
 
     image:
-      product.image?.trim() || "",
+      String(
+        product?.image || ""
+      ).trim(),
 
-    sizes: Array.isArray(product.sizes)
-      ? product.sizes
-      : [],
+    sizes:
+      Array.isArray(
+        product?.sizes
+      )
+        ? product.sizes
+        : [],
 
-    colors: Array.isArray(product.colors)
-      ? product.colors
-      : [],
+    colors:
+      Array.isArray(
+        product?.colors
+      )
+        ? product.colors
+        : [],
 
     badge:
-      product.badge?.trim() || "",
+      String(
+        product?.badge || ""
+      ).trim(),
+
+    /*
+     * التقييمات تبدأ من صفر
+     */
 
     rating: 0,
 
     reviews: 0,
 
     stock:
-      Number(product.stock) || 0,
+      Number(
+        product?.stock
+      ) || 0,
 
     createdAt:
       serverTimestamp(),
@@ -135,15 +235,17 @@ export async function addProductToFirebase(
       serverTimestamp(),
   };
 
-  const productsRef = collection(
-    db,
-    PRODUCTS_COLLECTION
-  );
+  const productsRef =
+    collection(
+      db,
+      PRODUCTS_COLLECTION
+    );
 
-  const document = await addDoc(
-    productsRef,
-    productData
-  );
+  const document =
+    await addDoc(
+      productsRef,
+      productData
+    );
 
   return {
     id: document.id,
@@ -167,49 +269,75 @@ export async function updateProductInFirebase(
     );
   }
 
-  const productRef = doc(
-    db,
-    PRODUCTS_COLLECTION,
-    productId
-  );
+  const productRef =
+    doc(
+      db,
+      PRODUCTS_COLLECTION,
+      productId
+    );
 
   const productData = {
-    name: product.name?.trim() || "",
+    name:
+      String(
+        product?.name || ""
+      ).trim(),
 
     description:
-      product.description?.trim() || "",
+      String(
+        product?.description || ""
+      ).trim(),
 
     price:
-      Number(product.price) || 0,
+      Number(product?.price) || 0,
 
     oldPrice:
-      Number(product.oldPrice) || 0,
+      Number(
+        product?.oldPrice
+      ) || 0,
 
     discount:
-      Number(product.discount) || 0,
+      Number(
+        product?.discount
+      ) || 0,
 
     category:
-      product.category || "",
+      String(
+        product?.category || ""
+      ).trim(),
 
     categoryName:
-      product.categoryName || "",
+      String(
+        product?.categoryName || ""
+      ).trim(),
 
     image:
-      product.image?.trim() || "",
+      String(
+        product?.image || ""
+      ).trim(),
 
-    sizes: Array.isArray(product.sizes)
-      ? product.sizes
-      : [],
+    sizes:
+      Array.isArray(
+        product?.sizes
+      )
+        ? product.sizes
+        : [],
 
-    colors: Array.isArray(product.colors)
-      ? product.colors
-      : [],
+    colors:
+      Array.isArray(
+        product?.colors
+      )
+        ? product.colors
+        : [],
 
     badge:
-      product.badge?.trim() || "",
+      String(
+        product?.badge || ""
+      ).trim(),
 
     stock:
-      Number(product.stock) || 0,
+      Number(
+        product?.stock
+      ) || 0,
 
     updatedAt:
       serverTimestamp(),
@@ -241,13 +369,16 @@ export async function deleteProductFromFirebase(
     );
   }
 
-  const productRef = doc(
-    db,
-    PRODUCTS_COLLECTION,
-    productId
-  );
+  const productRef =
+    doc(
+      db,
+      PRODUCTS_COLLECTION,
+      productId
+    );
 
-  await deleteDoc(productRef);
+  await deleteDoc(
+    productRef
+  );
 
   return true;
 }

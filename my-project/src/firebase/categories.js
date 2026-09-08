@@ -15,7 +15,7 @@ import { db } from "./config";
 const CATEGORIES_COLLECTION = "categories";
 
 /**
- * جلب الأقسام
+ * جلب الأقسام من Firebase
  */
 export async function getCategoriesFromFirebase() {
   const categoriesRef = collection(
@@ -23,41 +23,92 @@ export async function getCategoriesFromFirebase() {
     CATEGORIES_COLLECTION
   );
 
-  const categoriesQuery = query(
-    categoriesRef,
-    orderBy("createdAt", "asc")
-  );
+  try {
+    const categoriesQuery = query(
+      categoriesRef,
+      orderBy("createdAt", "asc")
+    );
 
-  const snapshot = await getDocs(categoriesQuery);
+    const snapshot =
+      await getDocs(
+        categoriesQuery
+      );
 
-  return snapshot.docs.map((item) => ({
-    id: item.id,
-    ...item.data(),
-  }));
+    return snapshot.docs.map(
+      (item) => ({
+        id: item.id,
+        ...item.data(),
+      })
+    );
+  } catch (error) {
+    console.error(
+      "Get Categories Firebase Error:",
+      error
+    );
+
+    /*
+     * في حالة وجود بيانات قديمة بدون createdAt
+     * نحاول جلب الأقسام بدون orderBy.
+     */
+    const snapshot =
+      await getDocs(
+        categoriesRef
+      );
+
+    return snapshot.docs.map(
+      (item) => ({
+        id: item.id,
+        ...item.data(),
+      })
+    );
+  }
 }
 
 /**
  * إضافة قسم
  */
-export async function addCategoryToFirebase(category) {
+export async function addCategoryToFirebase(
+  category
+) {
   const categoryData = {
-    name: category.name || "",
-    slug: category.slug || "",
-    description: category.description || "",
-    image: category.image || "",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    name:
+      String(
+        category?.name || ""
+      ).trim(),
+
+    slug:
+      String(
+        category?.slug || ""
+      ).trim(),
+
+    description:
+      String(
+        category?.description || ""
+      ).trim(),
+
+    image:
+      String(
+        category?.image || ""
+      ).trim(),
+
+    createdAt:
+      serverTimestamp(),
+
+    updatedAt:
+      serverTimestamp(),
   };
 
-  const categoriesRef = collection(
-    db,
-    CATEGORIES_COLLECTION
-  );
+  const categoriesRef =
+    collection(
+      db,
+      CATEGORIES_COLLECTION
+    );
 
-  const document = await addDoc(
-    categoriesRef,
-    categoryData
-  );
+  const document =
+    await addDoc(
+      categoriesRef,
+      categoryData
+    );
 
   return {
     id: document.id,
@@ -72,21 +123,56 @@ export async function updateCategoryInFirebase(
   categoryId,
   category
 ) {
-  const categoryRef = doc(
-    db,
-    CATEGORIES_COLLECTION,
-    categoryId
-  );
+  if (!categoryId) {
+    throw new Error(
+      "معرف القسم غير موجود."
+    );
+  }
+
+  const categoryRef =
+    doc(
+      db,
+      CATEGORIES_COLLECTION,
+      categoryId
+    );
 
   const categoryData = {
-    name: category.name || "",
-    slug: category.slug || "",
-    description: category.description || "",
-    image: category.image || "",
-    updatedAt: serverTimestamp(),
+    name:
+      String(
+        category?.name || ""
+      ).trim(),
+
+    slug:
+      String(
+        category?.slug || ""
+      ).trim(),
+
+    description:
+      String(
+        category?.description || ""
+      ).trim(),
+
+    image:
+      String(
+        category?.image || ""
+      ).trim(),
+
+    updatedAt:
+      serverTimestamp(),
   };
 
-  await updateDoc(categoryRef, categoryData);
+  console.log(
+    "Updating category:",
+    {
+      id: categoryId,
+      data: categoryData,
+    }
+  );
+
+  await updateDoc(
+    categoryRef,
+    categoryData
+  );
 
   return {
     id: categoryId,
@@ -100,13 +186,22 @@ export async function updateCategoryInFirebase(
 export async function deleteCategoryFromFirebase(
   categoryId
 ) {
-  const categoryRef = doc(
-    db,
-    CATEGORIES_COLLECTION,
-    categoryId
-  );
+  if (!categoryId) {
+    throw new Error(
+      "معرف القسم غير موجود."
+    );
+  }
 
-  await deleteDoc(categoryRef);
+  const categoryRef =
+    doc(
+      db,
+      CATEGORIES_COLLECTION,
+      categoryId
+    );
+
+  await deleteDoc(
+    categoryRef
+  );
 
   return true;
 }

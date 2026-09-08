@@ -12,14 +12,16 @@ import {
 
 import {
   Filter,
+  RefreshCw,
   Search,
   SlidersHorizontal,
   Star,
   X,
-  RefreshCw,
 } from "lucide-react";
 
-import { categories } from "../data/products";
+import {
+  getCategoriesFromFirebase,
+} from "../firebase/categories";
 
 import {
   getProductsFromFirebase,
@@ -35,7 +37,11 @@ function Products() {
   const urlOffer =
     searchParams.get("offer") === "true";
 
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] =
+    useState([]);
+
+  const [categories, setCategories] =
+    useState([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -58,23 +64,30 @@ function Products() {
   const [mobileFilters, setMobileFilters] =
     useState(false);
 
-  /*
-   * =========================
-   * LOAD PRODUCTS
-   * =========================
-   */
-
-  const loadProducts = useCallback(
+  const loadData = useCallback(
     async () => {
       try {
         setLoading(true);
         setError("");
 
-        const data =
-          await getProductsFromFirebase();
+        const [
+          productsData,
+          categoriesData,
+        ] = await Promise.all([
+          getProductsFromFirebase(),
+          getCategoriesFromFirebase(),
+        ]);
 
         setProducts(
-          Array.isArray(data) ? data : []
+          Array.isArray(productsData)
+            ? productsData
+            : []
+        );
+
+        setCategories(
+          Array.isArray(categoriesData)
+            ? categoriesData
+            : []
         );
       } catch (firebaseError) {
         console.error(
@@ -83,7 +96,8 @@ function Products() {
         );
 
         setError(
-          "حصل خطأ أثناء تحميل المنتجات. اتأكد إن Firebase شغال وإن صلاحيات Firestore مظبوطة."
+          firebaseError?.message ||
+            "حصل خطأ أثناء تحميل المنتجات والأقسام."
         );
       } finally {
         setLoading(false);
@@ -93,86 +107,72 @@ function Products() {
   );
 
   useEffect(() => {
-    loadProducts();
-  }, [loadProducts]);
-
-  /*
-   * =========================
-   * SYNC URL WITH STATE
-   * =========================
-   */
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     setCategory(urlCategory);
     setOffersOnly(urlOffer);
   }, [urlCategory, urlOffer]);
 
-  /*
-   * =========================
-   * FILTER + SEARCH + SORT
-   * =========================
-   */
-
   const filteredProducts = useMemo(() => {
     let result = [...products];
-
-    /*
-     * CATEGORY
-     */
 
     if (category !== "all") {
       result = result.filter(
         (product) =>
-          product.category === category
+          product.category ===
+          category
       );
     }
-
-    /*
-     * OFFERS
-     */
 
     if (offersOnly) {
       result = result.filter(
         (product) =>
-          Number(product.discount || 0) > 0
+          Number(
+            product.discount || 0
+          ) > 0
       );
     }
 
-    /*
-     * SEARCH
-     */
-
     if (search.trim()) {
-      const value =
-        search.trim().toLowerCase();
+      const value = search
+        .trim()
+        .toLowerCase();
 
-      result = result.filter((product) => {
-        const productName =
-          String(
-            product.name || ""
-          ).toLowerCase();
+      result = result.filter(
+        (product) => {
+          const productName =
+            String(
+              product.name || ""
+            ).toLowerCase();
 
-        const categoryName =
-          String(
-            product.categoryName || ""
-          ).toLowerCase();
+          const categoryName =
+            String(
+              product.categoryName ||
+                ""
+            ).toLowerCase();
 
-        const description =
-          String(
-            product.description || ""
-          ).toLowerCase();
+          const description =
+            String(
+              product.description ||
+                ""
+            ).toLowerCase();
 
-        return (
-          productName.includes(value) ||
-          categoryName.includes(value) ||
-          description.includes(value)
-        );
-      });
+          return (
+            productName.includes(
+              value
+            ) ||
+            categoryName.includes(
+              value
+            ) ||
+            description.includes(
+              value
+            )
+          );
+        }
+      );
     }
-
-    /*
-     * SORT
-     */
 
     if (sort === "price-low") {
       result.sort(
@@ -201,14 +201,10 @@ function Products() {
     if (sort === "newest") {
       result.sort((a, b) => {
         const dateA =
-          a.createdAt?.seconds
-            ? a.createdAt.seconds
-            : 0;
+          a.createdAt?.seconds || 0;
 
         const dateB =
-          b.createdAt?.seconds
-            ? b.createdAt.seconds
-            : 0;
+          b.createdAt?.seconds || 0;
 
         return dateB - dateA;
       });
@@ -223,12 +219,6 @@ function Products() {
     sort,
   ]);
 
-  /*
-   * =========================
-   * URL
-   * =========================
-   */
-
   const updateUrl = ({
     nextCategory = category,
     nextOffers = offersOnly,
@@ -236,7 +226,8 @@ function Products() {
     const params = {};
 
     if (nextCategory !== "all") {
-      params.category = nextCategory;
+      params.category =
+        nextCategory;
     }
 
     if (nextOffers) {
@@ -245,12 +236,6 @@ function Products() {
 
     setSearchParams(params);
   };
-
-  /*
-   * =========================
-   * CATEGORY
-   * =========================
-   */
 
   const changeCategory = (value) => {
     setCategory(value);
@@ -263,12 +248,6 @@ function Products() {
     setMobileFilters(false);
   };
 
-  /*
-   * =========================
-   * OFFERS
-   * =========================
-   */
-
   const changeOffers = (checked) => {
     setOffersOnly(checked);
 
@@ -278,49 +257,23 @@ function Products() {
     });
   };
 
-  /*
-   * =========================
-   * CLEAR FILTERS
-   * =========================
-   */
-
   const clearFilters = () => {
     setCategory("all");
     setOffersOnly(false);
     setSearch("");
     setSort("default");
-
     setSearchParams({});
   };
-
-  /*
-   * =========================
-   * SELECTED CATEGORY
-   * =========================
-   */
 
   const selectedCategory =
     categories.find(
       (item) => item.id === category
     );
 
-  /*
-   * =========================
-   * PRICE FORMAT
-   * =========================
-   */
-
-  const formatPrice = (price) => {
-    return Number(price || 0).toLocaleString(
+  const formatPrice = (price) =>
+    Number(price || 0).toLocaleString(
       "ar-EG"
     );
-  };
-
-  /*
-   * =========================
-   * PRODUCT CARD
-   * =========================
-   */
 
   const ProductCard = ({ product }) => {
     const rating = Number(
@@ -343,13 +296,18 @@ function Products() {
       product.oldPrice || 0
     );
 
+    const productCategory =
+      categories.find(
+        (item) =>
+          item.id ===
+          product.category
+      );
+
     return (
       <Link
         to={`/products/${product.id}`}
         className="group overflow-hidden rounded-[28px] border border-zinc-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:border-black hover:shadow-2xl"
       >
-        {/* IMAGE */}
-
         <div className="relative aspect-square overflow-hidden bg-zinc-100">
           {product.image ? (
             <img
@@ -376,15 +334,11 @@ function Products() {
             </div>
           )}
 
-          {/* BADGE */}
-
           {product.badge && (
             <span className="absolute right-4 top-4 rounded-full bg-black px-3 py-1.5 text-[10px] font-black text-[#39ff14] shadow-lg">
               {product.badge}
             </span>
           )}
-
-          {/* DISCOUNT */}
 
           {discount > 0 && (
             <span className="absolute left-4 top-4 rounded-full bg-[#39ff14] px-3 py-1.5 text-[10px] font-black text-black shadow-lg">
@@ -392,9 +346,8 @@ function Products() {
             </span>
           )}
 
-          {/* OUT OF STOCK */}
-
-          {Number(product.stock || 0) <= 0 && (
+          {Number(product.stock || 0) <=
+            0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/55 backdrop-blur-[2px]">
               <span className="rounded-full bg-white px-5 py-2 text-xs font-black text-black">
                 غير متوفر حاليًا
@@ -403,23 +356,16 @@ function Products() {
           )}
         </div>
 
-        {/* CONTENT */}
-
         <div className="p-5">
-          {/* CATEGORY */}
-
           <p className="text-xs font-bold text-zinc-400">
-            {product.categoryName ||
+            {productCategory?.name ||
+              product.categoryName ||
               "منتجات HIRAQL"}
           </p>
-
-          {/* NAME */}
 
           <h3 className="mt-2 line-clamp-1 text-base font-black text-zinc-900">
             {product.name}
           </h3>
-
-          {/* RATING */}
 
           <div className="mt-3 flex items-center gap-1.5 text-xs font-bold text-zinc-700">
             <Star
@@ -449,8 +395,6 @@ function Products() {
             )}
           </div>
 
-          {/* PRICE */}
-
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <span className="text-lg font-black text-zinc-950">
               {formatPrice(price)} جنيه
@@ -464,14 +408,12 @@ function Products() {
               )}
           </div>
 
-          {/* FOOTER */}
-
           <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-4">
             <span className="text-xs font-bold text-zinc-400">
               عرض التفاصيل
             </span>
 
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-lg font-black text-black transition-all duration-300 group-hover:bg-[#39ff14] group-hover:-translate-x-1">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 text-lg font-black text-black transition-all duration-300 group-hover:-translate-x-1 group-hover:bg-[#39ff14]">
               ←
             </span>
           </div>
@@ -485,13 +427,9 @@ function Products() {
       dir="rtl"
       className="min-h-screen bg-white"
     >
-      {/* =========================
-          HEADER
-      ========================= */}
+      {/* HEADER */}
 
       <section className="relative overflow-hidden bg-black px-4 py-16 text-white sm:px-6 lg:px-8">
-        {/* DECORATION */}
-
         <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#39ff14]/10 blur-3xl" />
 
         <div className="pointer-events-none absolute -bottom-32 right-0 h-80 w-80 rounded-full bg-[#39ff14]/5 blur-3xl" />
@@ -501,28 +439,21 @@ function Products() {
             HIRAQL GYM STORE
           </span>
 
-          <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">
+          <h1 className="mt-5 text-4xl font-black sm:text-5xl">
             كل المنتجات
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm leading-8 text-zinc-400">
-            اختار المنتج اللي يناسبك من المنتجات
-            المتاحة في المتجر، واستخدم البحث
-            والفلاتر عشان توصل للي محتاجه بسرعة.
+            اختار المنتج اللي يناسبك واستخدم الأقسام
+            والبحث والفلاتر عشان توصل للي محتاجه بسرعة.
           </p>
         </div>
       </section>
 
-      {/* =========================
-          CONTENT
-      ========================= */}
+      {/* CONTENT */}
 
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        {/* SEARCH + FILTER + SORT */}
-
         <div className="mb-8 flex flex-col gap-3 lg:flex-row">
-          {/* SEARCH */}
-
           <div className="relative flex-1">
             <Search
               size={20}
@@ -535,86 +466,59 @@ function Products() {
                 setSearch(event.target.value)
               }
               placeholder="ابحث عن منتج أو قسم..."
-              className="h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pr-12 pl-12 text-sm font-bold text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
+              className="h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pr-12 pl-12 text-sm font-bold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
             />
 
             {search && (
               <button
                 type="button"
-                onClick={() =>
-                  setSearch("")
-                }
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors hover:text-black"
-                aria-label="مسح البحث"
+                onClick={() => setSearch("")}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-black"
               >
                 <X size={18} />
               </button>
             )}
           </div>
 
-          {/* MOBILE FILTER */}
-
           <button
             type="button"
             onClick={() =>
               setMobileFilters(
-                (current) => !current
+                (value) => !value
               )
             }
-            className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-5 text-sm font-black transition-all hover:border-black hover:bg-black hover:text-white lg:hidden"
+            className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-5 text-sm font-black transition hover:border-black hover:bg-black hover:text-white lg:hidden"
           >
             <SlidersHorizontal size={18} />
-
             الفلاتر
-
-            {(category !== "all" ||
-              offersOnly) && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#39ff14] px-1 text-[10px] text-black">
-                !
-              </span>
-            )}
           </button>
-
-          {/* SORT */}
 
           <select
             value={sort}
             onChange={(event) =>
               setSort(event.target.value)
             }
-            className="h-14 rounded-2xl border border-zinc-200 bg-white px-5 text-sm font-bold text-zinc-900 outline-none transition-all focus:border-[#39ff14] focus:ring-4 focus:ring-[#39ff14]/10"
+            className="h-14 rounded-2xl border border-zinc-200 bg-white px-5 text-sm font-bold outline-none focus:border-[#39ff14]"
           >
             <option value="default">
               ترتيب المنتجات
             </option>
-
             <option value="newest">
               الأحدث
             </option>
-
             <option value="price-low">
               السعر: من الأقل للأعلى
             </option>
-
             <option value="price-high">
               السعر: من الأعلى للأقل
             </option>
-
             <option value="rating">
               الأعلى تقييمًا
             </option>
           </select>
         </div>
 
-        {/* =========================
-            MAIN GRID
-        ========================= */}
-
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-          {/* =========================
-              FILTERS
-          ========================= */}
-
           <aside
             className={`${
               mobileFilters
@@ -626,7 +530,6 @@ function Products() {
               <div className="mb-5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Filter size={18} />
-
                   <h2 className="font-black">
                     تصفية المنتجات
                   </h2>
@@ -643,17 +546,15 @@ function Products() {
                 </button>
               </div>
 
-              {/* CATEGORIES */}
-
               <div className="space-y-2">
                 <button
                   type="button"
                   onClick={() =>
                     changeCategory("all")
                   }
-                  className={`w-full rounded-xl px-4 py-3 text-right text-sm font-bold transition-all ${
+                  className={`w-full rounded-xl px-4 py-3 text-right text-sm font-bold transition ${
                     category === "all"
-                      ? "bg-black text-[#39ff14] shadow-lg"
+                      ? "bg-black text-[#39ff14]"
                       : "text-zinc-700 hover:bg-zinc-100"
                   }`}
                 >
@@ -663,16 +564,16 @@ function Products() {
                 {categories.map(
                   (item) => (
                     <button
-                      type="button"
                       key={item.id}
+                      type="button"
                       onClick={() =>
                         changeCategory(
                           item.id
                         )
                       }
-                      className={`w-full rounded-xl px-4 py-3 text-right text-sm font-bold transition-all ${
+                      className={`w-full rounded-xl px-4 py-3 text-right text-sm font-bold transition ${
                         category === item.id
-                          ? "bg-black text-[#39ff14] shadow-lg"
+                          ? "bg-black text-[#39ff14]"
                           : "text-zinc-700 hover:bg-zinc-100"
                       }`}
                     >
@@ -684,9 +585,7 @@ function Products() {
 
               <div className="my-5 h-px bg-zinc-100" />
 
-              {/* OFFERS */}
-
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl p-2 transition-colors hover:bg-zinc-50">
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl p-2 hover:bg-zinc-50">
                 <input
                   type="checkbox"
                   checked={offersOnly}
@@ -703,25 +602,17 @@ function Products() {
                 </span>
               </label>
 
-              {/* CLEAR */}
-
               <button
                 type="button"
                 onClick={clearFilters}
-                className="mt-4 w-full rounded-xl border border-zinc-200 py-3 text-xs font-black transition-all hover:border-black hover:bg-black hover:text-white"
+                className="mt-4 w-full rounded-xl border border-zinc-200 py-3 text-xs font-black hover:border-black hover:bg-black hover:text-white"
               >
                 مسح الفلاتر
               </button>
             </div>
           </aside>
 
-          {/* =========================
-              PRODUCTS
-          ========================= */}
-
           <section>
-            {/* LOADING */}
-
             {loading ? (
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {[
@@ -740,21 +631,15 @@ function Products() {
 
                     <div className="space-y-3 p-5">
                       <div className="h-3 w-20 animate-pulse rounded bg-zinc-100" />
-
                       <div className="h-5 w-3/4 animate-pulse rounded bg-zinc-100" />
-
                       <div className="h-4 w-1/2 animate-pulse rounded bg-zinc-100" />
-
-                      <div className="h-6 w-1/3 animate-pulse rounded bg-zinc-100" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : error ? (
-              /* ERROR */
-
               <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-red-100 bg-red-50 px-5 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-red-500 shadow-sm">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-red-500">
                   <X size={28} />
                 </div>
 
@@ -768,34 +653,27 @@ function Products() {
 
                 <button
                   type="button"
-                  onClick={loadProducts}
-                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-black text-white transition-all hover:bg-zinc-800"
+                  onClick={loadData}
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-black text-white"
                 >
                   <RefreshCw size={16} />
-
                   إعادة المحاولة
                 </button>
               </div>
             ) : (
               <>
-                {/* RESULTS HEADER */}
-
                 <div className="mb-5 flex flex-wrap items-center gap-2">
                   <p className="ml-auto text-sm font-bold text-zinc-500">
                     عرض{" "}
                     <span className="font-black text-black">
-                      {
-                        filteredProducts.length
-                      }
+                      {filteredProducts.length}
                     </span>{" "}
                     منتج
                   </p>
 
                   {selectedCategory && (
                     <span className="rounded-full bg-zinc-100 px-4 py-2 text-xs font-black">
-                      {
-                        selectedCategory.name
-                      }
+                      {selectedCategory.name}
                     </span>
                   )}
 
@@ -804,54 +682,38 @@ function Products() {
                       العروض فقط
                     </span>
                   )}
-
-                  {search.trim() && (
-                    <span className="max-w-full truncate rounded-full bg-black px-4 py-2 text-xs font-black text-white">
-                      البحث: {search}
-                    </span>
-                  )}
                 </div>
 
-                {/* EMPTY */}
-
-                {filteredProducts.length ===
-                0 ? (
-                  <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 px-5 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-zinc-300 shadow-sm">
-                      <Search size={30} />
-                    </div>
+                {filteredProducts.length === 0 ? (
+                  <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 text-center">
+                    <Search
+                      size={30}
+                      className="text-zinc-300"
+                    />
 
                     <h2 className="mt-5 text-xl font-black">
                       مفيش منتجات مطابقة
                     </h2>
 
-                    <p className="mt-2 max-w-md text-sm leading-7 text-zinc-500">
-                      جرب تغير كلمة البحث أو
-                      الفلاتر، أو ارجع لكل
-                      المنتجات.
+                    <p className="mt-2 text-sm text-zinc-500">
+                      جرّب تغير البحث أو الفلاتر.
                     </p>
 
                     <button
                       type="button"
-                      onClick={
-                        clearFilters
-                      }
-                      className="mt-5 rounded-xl bg-black px-5 py-3 text-sm font-black text-white transition-all hover:bg-zinc-800"
+                      onClick={clearFilters}
+                      className="mt-5 rounded-xl bg-black px-5 py-3 text-sm font-black text-white"
                     >
                       مسح الفلاتر
                     </button>
                   </div>
                 ) : (
-                  /* PRODUCTS */
-
                   <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                     {filteredProducts.map(
                       (product) => (
                         <ProductCard
                           key={product.id}
-                          product={
-                            product
-                          }
+                          product={product}
                         />
                       )
                     )}

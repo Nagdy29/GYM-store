@@ -1,3 +1,4 @@
+
 import {
   useEffect,
   useRef,
@@ -11,6 +12,7 @@ import {
   ClipboardList,
   FolderOpen,
   Home,
+  KeyRound,
   Menu,
   MessageSquare,
   Settings,
@@ -49,7 +51,8 @@ function playNotificationSound() {
     const gainNode =
       audioContext.createGain();
 
-    oscillator.type = "sine";
+    oscillator.type =
+      "sine";
 
     oscillator.frequency.setValueAtTime(
       880,
@@ -58,12 +61,14 @@ function playNotificationSound() {
 
     oscillator.frequency.setValueAtTime(
       660,
-      audioContext.currentTime + 0.12
+      audioContext.currentTime +
+        0.12
     );
 
     oscillator.frequency.setValueAtTime(
       880,
-      audioContext.currentTime + 0.24
+      audioContext.currentTime +
+        0.24
     );
 
     gainNode.gain.setValueAtTime(
@@ -73,15 +78,19 @@ function playNotificationSound() {
 
     gainNode.gain.exponentialRampToValueAtTime(
       0.18,
-      audioContext.currentTime + 0.02
+      audioContext.currentTime +
+        0.02
     );
 
     gainNode.gain.exponentialRampToValueAtTime(
       0.0001,
-      audioContext.currentTime + 0.45
+      audioContext.currentTime +
+        0.45
     );
 
-    oscillator.connect(gainNode);
+    oscillator.connect(
+      gainNode
+    );
 
     gainNode.connect(
       audioContext.destination
@@ -90,11 +99,14 @@ function playNotificationSound() {
     oscillator.start();
 
     oscillator.stop(
-      audioContext.currentTime + 0.45
+      audioContext.currentTime +
+        0.45
     );
 
     setTimeout(() => {
-      audioContext.close().catch(() => {});
+      audioContext
+        .close()
+        .catch(() => {});
     }, 700);
   } catch (error) {
     console.error(
@@ -105,16 +117,23 @@ function playNotificationSound() {
 }
 
 function AdminLayout() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const [mobileOpen, setMobileOpen] =
-    useState(false);
+  const [
+    mobileOpen,
+    setMobileOpen,
+  ] = useState(false);
 
-  const [notification, setNotification] =
-    useState(null);
+  const [
+    notification,
+    setNotification,
+  ] = useState(null);
 
-  const [soundEnabled, setSoundEnabled] =
-    useState(false);
+  const [
+    soundEnabled,
+    setSoundEnabled,
+  ] = useState(false);
 
   const initializedRef =
     useRef(false);
@@ -122,9 +141,6 @@ function AdminLayout() {
   const notificationTimeoutRef =
     useRef(null);
 
-  /*
-   * روابط لوحة التحكم
-   */
   const links = [
     {
       name: "الرئيسية",
@@ -152,18 +168,20 @@ function AdminLayout() {
       path: "/admin/reviews",
       icon: MessageSquare,
     },
+    {
+      name: "المفتاح الخفي",
+      path: "/admin/secret",
+      icon: KeyRound,
+    },
   ];
 
-  /*
-   * تفعيل الصوت بعد أول تفاعل من الأدمن.
-   *
-   * المتصفحات بتمنع تشغيل الصوت التلقائي
-   * قبل وجود تفاعل من المستخدم.
-   */
   useEffect(() => {
-    const enableSound = () => {
-      setSoundEnabled(true);
-    };
+    const enableSound =
+      () => {
+        setSoundEnabled(
+          true
+        );
+      };
 
     window.addEventListener(
       "pointerdown",
@@ -194,9 +212,6 @@ function AdminLayout() {
     };
   }, []);
 
-  /*
-   * متابعة الطلبات Live من Firebase.
-   */
   useEffect(() => {
     const unsubscribe =
       subscribeToOrders(
@@ -204,69 +219,59 @@ function AdminLayout() {
           orders,
           changes
         ) => {
-          /*
-           * أول Snapshot بيكون فيه
-           * كل الطلبات الموجودة بالفعل.
-           *
-           * مش عايزين نعتبرهم طلبات جديدة.
-           */
-          if (!initializedRef.current) {
-            initializedRef.current = true;
+          if (
+            !initializedRef.current
+          ) {
+            initializedRef.current =
+              true;
+
             return;
           }
 
-          /*
-           * استخراج الطلبات الجديدة فقط.
-           */
           const newOrders =
             changes.filter(
               (change) =>
-                change.type === "added"
+                change.type ===
+                "added"
             );
 
-          if (newOrders.length === 0) {
+          if (
+            newOrders.length ===
+            0
+          ) {
             return;
           }
 
-          /*
-           * لو وصل أكتر من طلب في نفس اللحظة،
-           * نعرض آخر طلب وصل.
-           */
           const newOrder =
             newOrders[
               newOrders.length - 1
             ].order;
 
           const customerName =
-            newOrder.customer?.name ||
+            newOrder
+              .customer?.name ||
             "عميل جديد";
 
           const orderNumber =
             newOrder.orderNumber ||
             newOrder.id;
 
-          /*
-           * تشغيل صوت التنبيه.
-           */
-          if (soundEnabled) {
+          if (
+            soundEnabled
+          ) {
             playNotificationSound();
           }
 
-          /*
-           * إنشاء إشعار داخل لوحة التحكم.
-           */
           setNotification({
             orderNumber,
             customerName,
             total:
               Number(
-                newOrder.total || 0
+                newOrder.total ||
+                  0
               ),
           });
 
-          /*
-           * مسح التايمر القديم.
-           */
           if (
             notificationTimeoutRef.current
           ) {
@@ -275,12 +280,11 @@ function AdminLayout() {
             );
           }
 
-          /*
-           * الإشعار يختفي بعد 8 ثواني.
-           */
           notificationTimeoutRef.current =
             setTimeout(() => {
-              setNotification(null);
+              setNotification(
+                null
+              );
             }, 8000);
         },
         (error) => {
@@ -304,24 +308,27 @@ function AdminLayout() {
     };
   }, [soundEnabled]);
 
-  /*
-   * فتح صفحة الطلبات.
-   */
-  const openOrders = () => {
-    setNotification(null);
-    setMobileOpen(false);
+  const openOrders =
+    () => {
+      setNotification(
+        null
+      );
 
-    navigate("/admin/orders");
-  };
+      setMobileOpen(
+        false
+      );
+
+      navigate(
+        "/admin/orders"
+      );
+    };
 
   return (
     <div
       dir="rtl"
       className="min-h-screen bg-zinc-100"
     >
-      {/* =========================
-          MOBILE HEADER
-      ========================== */}
+      {/* MOBILE HEADER */}
 
       <header className="fixed inset-x-0 top-0 z-50 flex h-16 items-center justify-between border-b border-zinc-800 bg-black px-4 text-white lg:hidden">
         <Link
@@ -341,7 +348,8 @@ function AdminLayout() {
           type="button"
           onClick={() =>
             setMobileOpen(
-              (value) => !value
+              (value) =>
+                !value
             )
           }
           className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 transition hover:bg-white/20"
@@ -355,9 +363,7 @@ function AdminLayout() {
         </button>
       </header>
 
-      {/* =========================
-          SIDEBAR
-      ========================== */}
+      {/* SIDEBAR */}
 
       <aside
         className={`fixed right-0 top-0 z-40 h-screen w-72 border-l border-zinc-800 bg-black text-white transition-transform duration-300 ${
@@ -366,8 +372,6 @@ function AdminLayout() {
             : "translate-x-full lg:translate-x-0"
         }`}
       >
-        {/* LOGO */}
-
         <div className="hidden h-20 items-center border-b border-white/10 px-6 lg:flex">
           <Link
             to="/admin"
@@ -390,51 +394,58 @@ function AdminLayout() {
         </div>
 
         <div className="p-5 pt-20 lg:pt-5">
-          {/* TITLE */}
-
           <p className="mb-3 px-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">
             لوحة التحكم
           </p>
 
-          {/* NAVIGATION */}
-
           <nav className="space-y-2">
-            {links.map((link) => {
-              const Icon = link.icon;
+            {links.map(
+              (link) => {
+                const Icon =
+                  link.icon;
 
-              return (
-                <NavLink
-                  key={link.path}
-                  to={link.path}
-                  end={link.end}
-                  onClick={() =>
-                    setMobileOpen(false)
-                  }
-                  className={({
-                    isActive,
-                  }) =>
-                    `group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
-                      isActive
-                        ? "bg-[#39ff14] text-black shadow-lg shadow-[#39ff14]/10"
-                        : "text-zinc-300 hover:bg-white/10 hover:text-white"
-                    }`
-                  }
-                >
-                  <Icon size={19} />
+                return (
+                  <NavLink
+                    key={
+                      link.path
+                    }
+                    to={
+                      link.path
+                    }
+                    end={
+                      link.end
+                    }
+                    onClick={() =>
+                      setMobileOpen(
+                        false
+                      )
+                    }
+                    className={({
+                      isActive,
+                    }) =>
+                      `group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all ${
+                        isActive
+                          ? "bg-[#39ff14] text-black shadow-lg shadow-[#39ff14]/10"
+                          : "text-zinc-300 hover:bg-white/10 hover:text-white"
+                      }`
+                    }
+                  >
+                    <Icon size={19} />
 
-                  <span>
-                    {link.name}
-                  </span>
-                </NavLink>
-              );
-            })}
+                    <span>
+                      {
+                        link.name
+                      }
+                    </span>
+                  </NavLink>
+                );
+              }
+            )}
           </nav>
 
           <div className="my-6 h-px bg-white/10" />
 
-          {/* =========================
-              SOUND STATUS
-          ========================== */}
+          {/* SOUND */}
 
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center gap-3">
@@ -462,14 +473,14 @@ function AdminLayout() {
             </div>
           </div>
 
-          {/* =========================
-              STORE
-          ========================== */}
+          {/* STORE */}
 
           <Link
             to="/"
             onClick={() =>
-              setMobileOpen(false)
+              setMobileOpen(
+                false
+              )
             }
             className="mt-4 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-zinc-400 transition-all hover:bg-white/10 hover:text-white"
           >
@@ -477,8 +488,6 @@ function AdminLayout() {
 
             الرجوع للمتجر
           </Link>
-
-          {/* SETTINGS */}
 
           <button
             type="button"
@@ -491,36 +500,30 @@ function AdminLayout() {
         </div>
       </aside>
 
-      {/* =========================
-          MOBILE OVERLAY
-      ========================== */}
+      {/* MOBILE OVERLAY */}
 
       {mobileOpen && (
         <button
           type="button"
           aria-label="إغلاق القائمة"
           onClick={() =>
-            setMobileOpen(false)
+            setMobileOpen(
+              false
+            )
           }
           className="fixed inset-0 z-30 bg-black/50 lg:hidden"
         />
       )}
 
-      {/* =========================
-          NEW ORDER NOTIFICATION
-      ========================== */}
+      {/* NOTIFICATION */}
 
       {notification && (
         <div className="fixed left-4 right-4 top-4 z-[100] sm:left-auto sm:right-6 sm:w-[390px]">
           <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black text-white shadow-2xl">
-            {/* GREEN LINE */}
-
             <div className="h-1 bg-[#39ff14]" />
 
             <div className="p-5">
               <div className="flex items-start gap-4">
-                {/* ICON */}
-
                 <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#39ff14] text-black">
                   <Bell size={22} />
 
@@ -530,8 +533,6 @@ function AdminLayout() {
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  {/* TITLE */}
-
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-black">
                       طلب جديد 🔥
@@ -540,10 +541,11 @@ function AdminLayout() {
                     <button
                       type="button"
                       onClick={() =>
-                        setNotification(null)
+                        setNotification(
+                          null
+                        )
                       }
                       className="text-zinc-500 transition hover:text-white"
-                      aria-label="إغلاق الإشعار"
                     >
                       <X size={17} />
                     </button>
@@ -552,8 +554,6 @@ function AdminLayout() {
                   <p className="mt-1 text-xs text-zinc-400">
                     فيه طلب جديد وصل للمتجر.
                   </p>
-
-                  {/* ORDER INFO */}
 
                   <div className="mt-4 rounded-2xl bg-white/5 p-3">
                     <div className="flex items-center justify-between gap-3">
@@ -594,11 +594,11 @@ function AdminLayout() {
                     </div>
                   </div>
 
-                  {/* OPEN ORDERS */}
-
                   <button
                     type="button"
-                    onClick={openOrders}
+                    onClick={
+                      openOrders
+                    }
                     className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#39ff14] text-xs font-black text-black transition-all hover:-translate-y-0.5 hover:bg-white"
                   >
                     <ClipboardList size={16} />
@@ -611,10 +611,6 @@ function AdminLayout() {
           </div>
         </div>
       )}
-
-      {/* =========================
-          MAIN
-      ========================== */}
 
       <main className="min-h-screen pt-16 lg:mr-72 lg:pt-0">
         <div className="p-4 sm:p-6 lg:p-8">

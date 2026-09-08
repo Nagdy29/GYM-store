@@ -12,13 +12,17 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock3,
+  Gift,
+  KeyRound,
+  Link as LinkIcon,
   LoaderCircle,
   MessageSquare,
   PackageCheck,
   RefreshCw,
   ShoppingCart,
-  Truck,
   TrendingUp,
+  Truck,
+  Sparkles,
 } from "lucide-react";
 
 import { Link } from "react-router-dom";
@@ -31,6 +35,10 @@ import {
   getOrdersFromFirebase,
 } from "../firebase/orders";
 
+import {
+  getSecretChallenges,
+} from "../firebase/secretChallenges";
+
 function formatPrice(price) {
   return `${Number(
     price || 0
@@ -39,11 +47,80 @@ function formatPrice(price) {
   )} جنيه`;
 }
 
+function getRewardLabel(challenge) {
+  const reward = challenge?.reward;
+
+  if (!reward) {
+    return "جائزة غير محددة";
+  }
+
+  switch (reward.type) {
+    case "percentage":
+      return `خصم ${reward.value}%`;
+
+    case "amount":
+      return `خصم ${Number(
+        reward.value || 0
+      ).toLocaleString("ar-EG")} جنيه`;
+
+    case "freeShipping":
+      return "شحن مجاني";
+
+    case "giftTshirt":
+      return "تيشيرت هدية";
+
+    case "giftProduct":
+      return reward.productName || "منتج هدية";
+
+    default:
+      return "جائزة";
+  }
+}
+
+function isChallengeActive(challenge) {
+  if (!challenge?.active) {
+    return false;
+  }
+
+  const now = new Date();
+
+  if (challenge.startAt) {
+    const start = new Date(
+      challenge.startAt
+    );
+
+    if (
+      !Number.isNaN(start.getTime()) &&
+      now < start
+    ) {
+      return false;
+    }
+  }
+
+  if (challenge.endAt) {
+    const end = new Date(
+      challenge.endAt
+    );
+
+    if (
+      !Number.isNaN(end.getTime()) &&
+      now > end
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function AdminDashboard() {
   const [products, setProducts] =
     useState([]);
 
   const [orders, setOrders] =
+    useState([]);
+
+  const [secretChallenges, setSecretChallenges] =
     useState([]);
 
   const [loading, setLoading] =
@@ -62,10 +139,12 @@ function AdminDashboard() {
           const [
             firebaseProducts,
             firebaseOrders,
+            firebaseSecretChallenges,
           ] =
             await Promise.all([
               getProductsFromFirebase(),
               getOrdersFromFirebase(),
+              getSecretChallenges(),
             ]);
 
           setProducts(
@@ -81,6 +160,14 @@ function AdminDashboard() {
               firebaseOrders
             )
               ? firebaseOrders
+              : []
+          );
+
+          setSecretChallenges(
+            Array.isArray(
+              firebaseSecretChallenges
+            )
+              ? firebaseSecretChallenges
               : []
           );
         } catch (firebaseError) {
@@ -220,6 +307,37 @@ function AdminDashboard() {
       [products]
     );
 
+  const activeSecretChallenge =
+    useMemo(
+      () =>
+        secretChallenges.find(
+          (challenge) =>
+            isChallengeActive(
+              challenge
+            )
+        ) || null,
+      [secretChallenges]
+    );
+
+  const activeSecretChallengesCount =
+    useMemo(
+      () =>
+        secretChallenges.filter(
+          (challenge) =>
+            isChallengeActive(
+              challenge
+            )
+        ).length,
+      [secretChallenges]
+    );
+
+  const secretHintsCount =
+    Array.isArray(
+      activeSecretChallenge?.hints
+    )
+      ? activeSecretChallenge.hints.length
+      : 0;
+
   const stats = [
     {
       title:
@@ -260,7 +378,7 @@ function AdminDashboard() {
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <span className="text-xs font-black text-[#16a34a]">
-            ZENGER ADMIN
+            HIRAQL ADMIN
           </span>
 
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">
@@ -269,7 +387,7 @@ function AdminDashboard() {
 
           <p className="mt-2 text-sm text-zinc-500">
             أهلاً بيك في لوحة إدارة متجر
-            ZENGER. البيانات متصلة بـ Firebase.
+            HIRAQL. البيانات متصلة بـ Firebase.
           </p>
         </div>
 
@@ -343,7 +461,7 @@ function AdminDashboard() {
           </p>
 
           <p className="mt-2 text-xs text-zinc-400">
-            بنجيب المنتجات والطلبات من Firebase.
+            بنجيب المنتجات والطلبات وتحديات المفتاح الخفي من Firebase.
           </p>
         </div>
       ) : (
@@ -392,6 +510,189 @@ function AdminDashboard() {
               }
             )}
           </div>
+
+          {/* SECRET CHALLENGE */}
+
+          <section className="mt-8 overflow-hidden rounded-[2rem] bg-black text-white shadow-xl">
+            <div className="relative overflow-hidden p-6 sm:p-8">
+              <div className="absolute -left-16 -top-20 h-52 w-52 rounded-full bg-[#39ff14]/10 blur-3xl" />
+
+              <div className="relative">
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-[#39ff14]/20 bg-[#39ff14]/10 px-3 py-2">
+                      <KeyRound
+                        size={14}
+                        className="text-[#39ff14]"
+                      />
+
+                      <span className="text-[10px] font-black tracking-wide text-[#39ff14]">
+                        HIRAQL SECRET
+                      </span>
+                    </div>
+
+                    <h2 className="mt-4 text-2xl font-black sm:text-3xl">
+                      المفتاح الخفي 🔐
+                    </h2>
+
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-zinc-400">
+                      إدارة التحدي السري اللي العملاء بيحاولوا
+                      يحلوه مقابل جائزة.
+                    </p>
+                  </div>
+
+                  <Link
+                    to="/admin/secret"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#39ff14] px-5 py-3 text-xs font-black text-black transition-all duration-300 hover:-translate-y-0.5 hover:bg-white"
+                  >
+                    إدارة المفتاح الخفي
+
+                    <ArrowLeft
+                      size={16}
+                    />
+                  </Link>
+                </div>
+
+                {activeSecretChallenge ? (
+                  <div className="mt-8 grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-bold text-zinc-500">
+                          التحدي الحالي
+                        </span>
+
+                        <span className="inline-flex items-center gap-2 rounded-full bg-[#39ff14]/10 px-3 py-1.5 text-[9px] font-black text-[#39ff14]">
+                          <span className="h-2 w-2 animate-pulse rounded-full bg-[#39ff14]" />
+                          فعال الآن
+                        </span>
+                      </div>
+
+                      <h3 className="mt-4 truncate text-lg font-black">
+                        {
+                          activeSecretChallenge.title
+                        }
+                      </h3>
+
+                      <p className="mt-2 line-clamp-2 text-xs leading-6 text-zinc-500">
+                        {
+                          activeSecretChallenge.description ||
+                          "فيه تحدي شغال حاليًا."
+                        }
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-bold text-zinc-500">
+                          الهنتات
+                        </span>
+
+                        <Sparkles
+                          size={17}
+                          className="text-[#39ff14]"
+                        />
+                      </div>
+
+                      <p className="mt-4 text-3xl font-black">
+                        {
+                          secretHintsCount
+                        }
+                      </p>
+
+                      <p className="mt-1 text-[10px] text-zinc-600">
+                        هنت متاح
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-bold text-zinc-500">
+                          الجائزة
+                        </span>
+
+                        <Gift
+                          size={17}
+                          className="text-[#39ff14]"
+                        />
+                      </div>
+
+                      <p className="mt-4 truncate text-base font-black text-white">
+                        {getRewardLabel(
+                          activeSecretChallenge
+                        )}
+                      </p>
+
+                      <p className="mt-1 text-[10px] text-zinc-600">
+                        للعميل الفائز
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-bold text-zinc-500">
+                          إجمالي التحديات
+                        </span>
+
+                        <KeyRound
+                          size={17}
+                          className="text-[#39ff14]"
+                        />
+                      </div>
+
+                      <p className="mt-4 text-3xl font-black">
+                        {
+                          secretChallenges.length
+                        }
+                      </p>
+
+                      <p className="mt-1 text-[10px] text-zinc-600">
+                        {
+                          activeSecretChallengesCount
+                        }{" "}
+                        فعال حاليًا
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-8 flex flex-col gap-5 rounded-2xl border border-white/10 bg-white/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-zinc-400">
+                        <LockIcon />
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-black">
+                          مفيش تحدي فعال دلوقتي
+                        </p>
+
+                        <p className="mt-1 text-xs leading-6 text-zinc-500">
+                          عندك{" "}
+                          <span className="font-black text-white">
+                            {
+                              secretChallenges.length
+                            }
+                          </span>{" "}
+                          تحديات محفوظة في Firebase، لكن مفيش تحدي شغال حاليًا.
+                        </p>
+                      </div>
+                    </div>
+
+                    <Link
+                      to="/admin/secret"
+                      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs font-black transition hover:bg-white/10"
+                    >
+                      إنشاء تحدي
+
+                      <Sparkles
+                        size={15}
+                        className="text-[#39ff14]"
+                      />
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
 
           {/* ORDER STATUS */}
 
@@ -515,8 +816,7 @@ function AdminDashboard() {
               </div>
             </div>
 
-            {cancelledOrders >
-              0 && (
+            {cancelledOrders > 0 && (
               <div className="mt-4 rounded-2xl bg-red-50 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-red-700">
@@ -668,19 +968,17 @@ function AdminDashboard() {
           {/* QUICK ACTIONS */}
 
           <section className="mt-8">
-            <div className="mb-4 flex items-end justify-between">
-              <div>
-                <h2 className="text-xl font-black">
-                  الوصول السريع
-                </h2>
+            <div className="mb-4">
+              <h2 className="text-xl font-black">
+                الوصول السريع
+              </h2>
 
-                <p className="mt-1 text-xs text-zinc-400">
-                  روح لأي جزء من لوحة التحكم بسرعة.
-                </p>
-              </div>
+              <p className="mt-1 text-xs text-zinc-400">
+                روح لأي جزء من لوحة التحكم بسرعة.
+              </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <Link
                 to="/admin/products"
                 className="group rounded-3xl border border-zinc-200 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:border-black hover:shadow-xl"
@@ -758,6 +1056,41 @@ function AdminDashboard() {
                   />
                 </span>
               </Link>
+
+              <Link
+                to="/admin/secret"
+                className="group relative overflow-hidden rounded-3xl border border-black bg-black p-6 text-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+              >
+                <div className="absolute -left-8 -top-8 h-24 w-24 rounded-full bg-[#39ff14]/10 blur-2xl transition-transform duration-500 group-hover:scale-150" />
+
+                <div className="relative">
+                  <KeyRound
+                    size={25}
+                    className="text-[#39ff14]"
+                  />
+
+                  <h3 className="mt-5 font-black">
+                    المفتاح الخفي
+                  </h3>
+
+                  <p className="mt-2 text-xs leading-6 text-zinc-400">
+                    إنشاء وإدارة التحديات والهنتات والجوائز.
+                  </p>
+
+                  <div className="mt-5 flex items-center justify-between gap-3">
+                    <span className="text-xs font-black text-[#39ff14]">
+                      {activeSecretChallenge
+                        ? "تحدي فعال الآن"
+                        : "لا يوجد تحدي فعال"}
+                    </span>
+
+                    <ArrowLeft
+                      size={15}
+                      className="transition-transform group-hover:-translate-x-1"
+                    />
+                  </div>
+                </div>
+              </Link>
             </div>
           </section>
 
@@ -779,9 +1112,9 @@ function AdminDashboard() {
                 </h2>
 
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-400">
-                  المنتجات والطلبات بيتم التعامل معاها من
-                  Firebase Firestore، والطلبات الجديدة بتظهر
-                  مباشرة في لوحة الإدارة.
+                  المنتجات والطلبات وتحديات المفتاح الخفي
+                  بيتم التعامل معاها من Firebase Firestore،
+                  والطلبات الجديدة بتظهر مباشرة في لوحة الإدارة.
                 </p>
               </div>
 
@@ -808,6 +1141,14 @@ function AdminDashboard() {
         </>
       )}
     </div>
+  );
+}
+
+function LockIcon() {
+  return (
+    <KeyRound
+      size={21}
+    />
   );
 }
 

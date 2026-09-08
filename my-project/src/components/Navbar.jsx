@@ -51,7 +51,7 @@ function Navbar() {
       ====================================================== */}
 
       <div className="border-b border-white/[0.08]">
-        <div className="mx-auto flex h-[58px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="relative mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:h-[74px] sm:px-6 lg:px-8">
           {/* LEFT */}
 
           <div className="flex items-center gap-1">
@@ -92,39 +92,25 @@ function Navbar() {
 
           <Link
             to="/"
-            className="absolute left-1/2 -translate-x-1/2"
+            className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
           >
             <img
               src="/hiraql-logo.jpg"
               alt="HIRAQL GYM STORE"
-              className="h-auto w-[115px] object-contain transition-all duration-300 hover:scale-105 sm:w-[135px]"
+              className="
+                h-auto
+                w-[175px]
+                object-contain
+                transition-all
+                duration-300
+                hover:scale-105
+                sm:w-[175px]
+              "
             />
           </Link>
 
           {/* RIGHT */}
 
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              className="text-[9px] font-black text-white underline underline-offset-4 transition-colors hover:text-[#39ff14]"
-            >
-              AR
-            </button>
-
-            <button
-              type="button"
-              className="hidden text-[9px] font-black text-zinc-500 transition-colors hover:text-white sm:block"
-            >
-              EN
-            </button>
-
-            <button
-              type="button"
-              className="hidden text-[9px] font-black text-zinc-500 transition-colors hover:text-white sm:block"
-            >
-              FR
-            </button>
-          </div>
         </div>
       </div>
 
@@ -171,6 +157,21 @@ function Navbar() {
           >
             العروض
           </NavLink>
+
+          {/* SECRET */}
+
+          <NavLink
+            to="/secret"
+            className={({ isActive }) =>
+              `relative py-4 text-[11px] font-bold transition-colors ${
+                isActive
+                  ? "text-[#39ff14]"
+                  : "text-zinc-500 hover:text-[#39ff14]"
+              }`
+            }
+          >
+            🔐
+          </NavLink>
         </nav>
       </div>
 
@@ -184,7 +185,8 @@ function Navbar() {
             type="button"
             onClick={() =>
               setIsMenuOpen(
-                (current) => !current
+                (current) =>
+                  !current
               )
             }
             className="flex h-9 w-9 items-center justify-center text-zinc-300 transition-colors hover:text-[#39ff14]"
@@ -212,7 +214,7 @@ function Navbar() {
         <div
           className={`overflow-hidden border-t border-white/[0.07] bg-[#050505] transition-all duration-300 ${
             isMenuOpen
-              ? "max-h-[500px] opacity-100"
+              ? "max-h-[600px] opacity-100"
               : "max-h-0 opacity-0"
           }`}
         >
@@ -223,7 +225,9 @@ function Navbar() {
                 to={link.path}
                 end={link.path === "/"}
                 onClick={() =>
-                  setIsMenuOpen(false)
+                  setIsMenuOpen(
+                    false
+                  )
                 }
                 className={({ isActive }) =>
                   `border-b border-white/[0.05] px-4 py-4 text-sm font-bold transition-colors ${
@@ -240,21 +244,41 @@ function Navbar() {
             <NavLink
               to="/products?offer=true"
               onClick={() =>
-                setIsMenuOpen(false)
+                setIsMenuOpen(
+                  false
+                )
               }
               className="border-b border-white/[0.05] px-4 py-4 text-sm font-bold text-zinc-400 transition-colors hover:text-[#39ff14]"
             >
               العروض
             </NavLink>
 
+            {/* SECRET */}
+
+            <NavLink
+              to="/secret"
+              onClick={() =>
+                setIsMenuOpen(
+                  false
+                )
+              }
+              className="border-b border-white/[0.05] px-4 py-4 text-sm font-bold text-zinc-400 transition-colors hover:text-[#39ff14]"
+            >
+              🔐 المفتاح الخفي
+            </NavLink>
+
             <Link
               to="/cart"
               onClick={() =>
-                setIsMenuOpen(false)
+                setIsMenuOpen(
+                  false
+                )
               }
               className="mt-2 flex items-center justify-between bg-[#39ff14] px-4 py-4 text-sm font-black text-black"
             >
-              <span>سلة التسوق</span>
+              <span>
+                سلة التسوق
+              </span>
 
               {cartCount > 0 && (
                 <span className="bg-black px-2 py-1 text-[9px] text-[#39ff14]">
