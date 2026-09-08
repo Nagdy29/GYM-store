@@ -410,7 +410,7 @@ function Products() {
 
           <p className="text-xs font-bold text-zinc-400">
             {product.categoryName ||
-              "منتجات ZENGER"}
+              "منتجات HIRAQL"}
           </p>
 
           {/* NAME */}
@@ -498,7 +498,7 @@ function Products() {
 
         <div className="relative mx-auto max-w-7xl">
           <span className="inline-flex rounded-full border border-[#39ff14]/30 bg-[#39ff14]/10 px-4 py-2 text-xs font-black text-[#39ff14]">
-            ZENGER GYM STORE
+            HIRAQL GYM STORE
           </span>
 
           <h1 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">

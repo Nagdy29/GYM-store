@@ -18,7 +18,7 @@ function OrderSuccess() {
 
   try {
     order = JSON.parse(
-      localStorage.getItem("zenger-last-order")
+      localStorage.getItem("hiraql-last-order")
     );
   } catch {
     order = null;
@@ -73,7 +73,7 @@ function OrderSuccess() {
           <h1 className="mt-5 text-3xl font-black leading-tight sm:text-5xl">
             شكرًا لاختيارك
             <span className="block text-[#39ff14]">
-              ZENGER
+              HIRAQL
             </span>
           </h1>
 
@@ -394,7 +394,7 @@ function OrderSuccess() {
         {/* FOOT NOTE */}
         <div className="mt-8 text-center">
           <p className="text-xs leading-6 text-zinc-400">
-            شكرًا لثقتك في ZENGER GYM STORE ❤️
+            شكرًا لثقتك في HIRAQL GYM STORE ❤️
             <br />
             هنفضل نطور المتجر ونوفرلك كل جديد.
           </p>

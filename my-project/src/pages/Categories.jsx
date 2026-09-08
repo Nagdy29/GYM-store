@@ -190,7 +190,7 @@ function Categories() {
             />
 
             <span className="text-xs font-black tracking-wide text-[#39ff14]">
-              ZENGER STORE
+              HIRAQL STORE
             </span>
           </div>
 
@@ -203,7 +203,7 @@ function Categories() {
           </h1>
 
           <p className="mt-5 max-w-2xl text-sm leading-8 text-zinc-400 sm:text-base">
-            كل منتجات ZENGER متقسمة بشكل بسيط
+            كل منتجات HIRAQL متقسمة بشكل بسيط
             عشان توصل للي محتاجه بسرعة ومن غير
             لف كتير.
           </p>

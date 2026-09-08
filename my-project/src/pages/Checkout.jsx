@@ -189,7 +189,7 @@ function Checkout() {
       setSubmitting(true);
 
       const orderNumber =
-        `ZG-${Date.now()}`;
+        `HRQL-${Date.now()}`;
 
       const order = {
         orderNumber,
@@ -247,7 +247,7 @@ function Checkout() {
        * عشان تعرض بيانات الطلب فورًا.
        */
       localStorage.setItem(
-        "zenger-last-order",
+        "hiraql-last-order",
         JSON.stringify({
           ...order,
           id: savedOrder.id,
@@ -315,7 +315,7 @@ function Checkout() {
       <section className="bg-black px-4 py-12 text-white sm:px-6 sm:py-14 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <span className="text-sm font-black text-[#39ff14]">
-            ZENGER GYM STORE
+            HIRAQL GYM STORE
           </span>
 
           <h1 className="mt-2 text-3xl font-black sm:text-4xl">

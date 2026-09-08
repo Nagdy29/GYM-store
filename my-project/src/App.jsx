@@ -2,11 +2,12 @@ import { Routes, Route } from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
 import ScrollToTop from "./components/ScrollToTop";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 
 import AdminLayout from "./admin/AdminLayout";
 import AdminProtectedRoute from "./admin/AdminProtectedRoute";
 import AdminLogin from "./admin/AdminLogin";
-import ScrollToTopButton from "./components/ScrollToTopButton";
+
 import Home from "./pages/Home";
 import Products from "./pages/Products";
 import Categories from "./pages/Categories";
@@ -15,6 +16,9 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
 import NotFound from "./pages/NotFound";
+
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 
 import AdminDashboard from "./admin/AdminDashboard";
 import AdminProducts from "./admin/AdminProducts";
@@ -26,8 +30,7 @@ function App() {
   return (
     <>
       <ScrollToTop />
-        <ScrollToTopButton />
-
+      <ScrollToTopButton />
 
       <Routes>
         {/* =========================
@@ -64,6 +67,19 @@ function App() {
           <Route
             path="/order-success"
             element={<OrderSuccess />}
+          />
+
+          {/* =========================
+              About & Contact
+          ========================== */}
+          <Route
+            path="/about"
+            element={<About />}
+          />
+
+          <Route
+            path="/contact"
+            element={<Contact />}
           />
         </Route>
 
