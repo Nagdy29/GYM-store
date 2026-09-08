@@ -9,7 +9,7 @@ import {
   Send,
 } from "lucide-react";
 
-const WHATSAPP_NUMBER = "201021142677";
+const WHATSAPP_NUMBER = "201099170161";
 
 function Contact() {
   const [form, setForm] = useState({
@@ -106,7 +106,7 @@ function Contact() {
                   dir="ltr"
                   className="mt-1 text-lg font-black"
                 >
-                  010 2114 2677
+01099170161  
                 </p>
               </div>
             </a>
@@ -126,8 +126,7 @@ function Contact() {
                     dir="ltr"
                     className="mt-1 text-sm font-bold"
                   >
-                    010 2114 2677
-                  </p>
+01099170161                  </p>
                 </div>
               </div>
 
@@ -192,7 +191,7 @@ function Contact() {
                 اكتب بياناتك ورسالتك، وهيتم تجهيزها وإرسالها على
                 واتساب مباشرة.
               </p>
-            </div>
+            </div>  
 
             <form
               onSubmit={handleSubmit}

@@ -304,11 +304,11 @@ function Home() {
               <div className="pointer-events-none absolute right-[5%] top-[15%] h-[420px] w-[420px] rounded-full bg-[#39ff14]/[0.06] blur-[100px]" />
 
               <div className="relative h-[470px] w-full max-w-[560px] overflow-hidden sm:h-[560px] lg:h-[640px]">
-                <img
-                  src="WhatsApp Image 2026-09-08 at 11.45.32 AM.jpeg"
-                  alt="HIRAQL Gym"
-                  className="h-full w-full object-cover object-center opacity-95 transition-transform duration-1000 hover:scale-[1.02]"
-                />
+           <img
+  src="WhatsApp Image 2026-09-08 at 11.45.32 AM.jpeg"
+  alt="HIRAQL Gym"
+  className="h-full w-full object-contain object-center opacity-95 transition-transform duration-700 hover:scale-[1.01]"
+/>
 
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#050505]/10 via-transparent to-[#050505]/80" />
 
