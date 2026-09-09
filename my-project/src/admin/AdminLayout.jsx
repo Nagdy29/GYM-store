@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -8,11 +9,13 @@ import {
   BarChart3,
   Bell,
   Boxes,
+  CheckCircle2,
   ChevronLeft,
   ClipboardList,
   FolderOpen,
   Home,
   KeyRound,
+  LogOut,
   Menu,
   MessageSquare,
   Settings,
@@ -30,9 +33,20 @@ import {
   useNavigate,
 } from "react-router-dom";
 
+import { signOut } from "firebase/auth";
+
+import { auth } from "../firebase/config";
+
 import {
+  markOrderNotificationAsSeen,
   subscribeToOrders,
 } from "../firebase/orders";
+
+/*
+=========================================================
+NOTIFICATION SOUND
+=========================================================
+*/
 
 function playNotificationSound() {
   try {
@@ -40,7 +54,9 @@ function playNotificationSound() {
       window.AudioContext ||
       window.webkitAudioContext;
 
-    if (!AudioContext) return;
+    if (!AudioContext) {
+      return;
+    }
 
     const audioContext =
       new AudioContext();
@@ -74,27 +90,34 @@ function playNotificationSound() {
     );
 
     gainNode.gain.exponentialRampToValueAtTime(
-      0.18,
+      0.2,
       audioContext.currentTime + 0.02
     );
 
     gainNode.gain.exponentialRampToValueAtTime(
       0.0001,
-      audioContext.currentTime + 0.45
+      audioContext.currentTime + 0.5
     );
 
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    oscillator.connect(
+      gainNode
+    );
+
+    gainNode.connect(
+      audioContext.destination
+    );
 
     oscillator.start();
 
     oscillator.stop(
-      audioContext.currentTime + 0.45
+      audioContext.currentTime + 0.5
     );
 
     setTimeout(() => {
-      audioContext.close().catch(() => {});
-    }, 700);
+      audioContext
+        .close()
+        .catch(() => {});
+    }, 800);
   } catch (error) {
     console.error(
       "Notification sound error:",
@@ -104,8 +127,11 @@ function playNotificationSound() {
 }
 
 function AdminLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
 
   const [
     mobileOpen,
@@ -122,11 +148,83 @@ function AdminLayout() {
     setSoundEnabled,
   ] = useState(false);
 
+  const [
+    loggingOut,
+    setLoggingOut,
+  ] = useState(false);
+
+  const [
+    markingSeen,
+    setMarkingSeen,
+  ] = useState(false);
+
+  /*
+   * أول Snapshot لا نعتبره
+   * طلبات جديدة، لكن لو فيه طلبات
+   * غير مقروءة من قبل هنطلع آخر واحد.
+   */
+
   const initializedRef =
+    useRef(false);
+
+  const soundEnabledRef =
     useRef(false);
 
   const notificationTimeoutRef =
     useRef(null);
+
+  /*
+=========================================================
+SOUND STATE
+=========================================================
+*/
+
+  useEffect(() => {
+    soundEnabledRef.current =
+      soundEnabled;
+  }, [soundEnabled]);
+
+  const enableSound =
+    useCallback(() => {
+      setSoundEnabled(
+        true
+      );
+
+      soundEnabledRef.current =
+        true;
+    }, []);
+
+  useEffect(() => {
+    window.addEventListener(
+      "pointerdown",
+      enableSound,
+      { once: true }
+    );
+
+    window.addEventListener(
+      "keydown",
+      enableSound,
+      { once: true }
+    );
+
+    return () => {
+      window.removeEventListener(
+        "pointerdown",
+        enableSound
+      );
+
+      window.removeEventListener(
+        "keydown",
+        enableSound
+      );
+    };
+  }, [enableSound]);
+
+  /*
+=========================================================
+LINKS
+=========================================================
+*/
 
   const links = [
     {
@@ -160,51 +258,34 @@ function AdminLayout() {
       path: "/admin/secret",
       icon: KeyRound,
     },
+    {
+      name: "الإعدادات",
+      path: "/admin/settings",
+      icon: Settings,
+    },
   ];
 
   const currentPage =
-    links.find((link) => {
-      if (link.end) {
-        return (
-          location.pathname ===
+    links.find(
+      (link) => {
+        if (link.end) {
+          return (
+            location.pathname ===
+            link.path
+          );
+        }
+
+        return location.pathname.startsWith(
           link.path
         );
       }
-
-      return location.pathname.startsWith(
-        link.path
-      );
-    });
-
-  useEffect(() => {
-    const enableSound = () => {
-      setSoundEnabled(true);
-    };
-
-    window.addEventListener(
-      "pointerdown",
-      enableSound,
-      { once: true }
     );
 
-    window.addEventListener(
-      "keydown",
-      enableSound,
-      { once: true }
-    );
-
-    return () => {
-      window.removeEventListener(
-        "pointerdown",
-        enableSound
-      );
-
-      window.removeEventListener(
-        "keydown",
-        enableSound
-      );
-    };
-  }, []);
+  /*
+=========================================================
+REALTIME ORDERS
+=========================================================
+*/
 
   useEffect(() => {
     const unsubscribe =
@@ -213,53 +294,133 @@ function AdminLayout() {
           orders,
           changes
         ) => {
+          /*
+           * ==============================================
+           * أول مرة الصفحة تعمل فيها
+           * ==============================================
+           *
+           * لا نطلع صوت لكل الطلبات القديمة.
+           *
+           * لكن لو فيه طلبات جديدة غير مقروءة
+           * محفوظة في Firebase، نظهر آخر واحد منها.
+           */
+
           if (
             !initializedRef.current
           ) {
             initializedRef.current =
               true;
 
+            const unreadOrders =
+              orders.filter(
+                (order) =>
+                  order?.id &&
+                  order.status !==
+                    "cancelled" &&
+                  order.adminNotificationSeen !==
+                    true
+              );
+
+            if (
+              unreadOrders.length >
+              0
+            ) {
+              const latestUnread =
+                unreadOrders[0];
+
+              setNotification({
+                orderId:
+                  latestUnread.id,
+
+                orderNumber:
+                  latestUnread.orderNumber ||
+                  latestUnread.id ||
+                  "بدون رقم",
+
+                customerName:
+                  latestUnread
+                    ?.customer
+                    ?.name ||
+                  "عميل جديد",
+
+                total: Number(
+                  latestUnread?.total ||
+                    0
+                ),
+              });
+
+              /*
+               * الصوت لا يعمل تلقائيًا
+               * إلا بعد تفاعل المستخدم مع الصفحة.
+               */
+            }
+
             return;
           }
+
+          /*
+           * ==============================================
+           * التغييرات الجديدة
+           * ==============================================
+           */
 
           const newOrders =
             changes.filter(
               (change) =>
                 change.type ===
-                "added"
+                  "added" &&
+                change.order?.id &&
+                change.order
+                  ?.adminNotificationSeen !==
+                  true &&
+                change.order?.status !==
+                  "cancelled"
             );
 
           if (
-            newOrders.length === 0
+            newOrders.length ===
+            0
           ) {
             return;
           }
 
           const newOrder =
             newOrders[
-              newOrders.length - 1
+              newOrders.length -
+                1
             ].order;
 
-          const customerName =
-            newOrder?.customer?.name ||
-            "عميل جديد";
-
-          const orderNumber =
-            newOrder?.orderNumber ||
-            newOrder?.id ||
-            "بدون رقم";
-
-          if (soundEnabled) {
-            playNotificationSound();
-          }
+          /*
+           * لو نفس الطلب اتبعت
+           * أكثر من مرة من listener
+           * منعرضوش مرتين.
+           */
 
           setNotification({
-            orderNumber,
-            customerName,
+            orderId:
+              newOrder.id,
+
+            orderNumber:
+              newOrder.orderNumber ||
+              newOrder.id ||
+              "بدون رقم",
+
+            customerName:
+              newOrder?.customer
+                ?.name ||
+              "عميل جديد",
+
             total: Number(
-              newOrder?.total || 0
+              newOrder?.total ||
+                0
             ),
           });
+
+          if (
+            soundEnabledRef.current
+          ) {
+            playNotificationSound();
+          }
 
           if (
             notificationTimeoutRef.current
@@ -269,10 +430,20 @@ function AdminLayout() {
             );
           }
 
+          /*
+           * اختفاء بصري فقط.
+           *
+           * لا نعدل Firebase هنا.
+           * الطلب يفضل Unread لحد ما الأدمن
+           * يضغط "تمت المشاهدة" أو "فتح الطلب".
+           */
+
           notificationTimeoutRef.current =
             setTimeout(() => {
-              setNotification(null);
-            }, 8000);
+              setNotification(
+                null
+              );
+            }, 12000);
         },
         (error) => {
           console.error(
@@ -293,30 +464,170 @@ function AdminLayout() {
         );
       }
     };
-  }, [soundEnabled]);
+  }, []);
+
+  /*
+=========================================================
+CLOSE MOBILE MENU
+=========================================================
+*/
 
   useEffect(() => {
     setMobileOpen(false);
   }, [location.pathname]);
 
-  const openOrders = () => {
-    setNotification(null);
-    setMobileOpen(false);
+  /*
+=========================================================
+MARK AS SEEN
+=========================================================
+*/
 
-    navigate("/admin/orders");
-  };
+  const markNotificationAsSeen =
+    async () => {
+      if (
+        !notification?.orderId ||
+        markingSeen
+      ) {
+        setNotification(
+          null
+        );
+
+        return;
+      }
+
+      try {
+        setMarkingSeen(
+          true
+        );
+
+        /*
+         * هنا بنحفظ إن الإشعار اتشاف
+         * في Firebase.
+         *
+         * الطلب نفسه لا يتم حذفه.
+         */
+
+        await markOrderNotificationAsSeen(
+          notification.orderId
+        );
+      } catch (error) {
+        console.error(
+          "Mark notification seen error:",
+          error
+        );
+      } finally {
+        setMarkingSeen(
+          false
+        );
+
+        setNotification(
+          null
+        );
+      }
+    };
+
+  /*
+=========================================================
+OPEN ORDERS
+=========================================================
+*/
+
+  const openOrders =
+    async () => {
+      const orderId =
+        notification?.orderId;
+
+      /*
+       * نعلّم الإشعار كمقروء
+       * قبل الذهاب لصفحة الطلبات.
+       *
+       * الطلب نفسه يفضل موجود.
+       */
+
+      if (orderId) {
+        try {
+          await markOrderNotificationAsSeen(
+            orderId
+          );
+        } catch (error) {
+          console.error(
+            "Mark order notification seen error:",
+            error
+          );
+        }
+      }
+
+      setNotification(
+        null
+      );
+
+      setMobileOpen(
+        false
+      );
+
+      navigate(
+        "/admin/orders"
+      );
+    };
+
+  /*
+=========================================================
+LOGOUT
+=========================================================
+*/
+
+  const handleLogout =
+    async () => {
+      if (loggingOut) {
+        return;
+      }
+
+      try {
+        setLoggingOut(
+          true
+        );
+
+        await signOut(
+          auth
+        );
+
+        setNotification(
+          null
+        );
+
+        setMobileOpen(
+          false
+        );
+
+        navigate(
+          "/admin/login",
+          {
+            replace: true,
+          }
+        );
+      } catch (error) {
+        console.error(
+          "Admin logout error:",
+          error
+        );
+
+        setLoggingOut(
+          false
+        );
+
+        alert(
+          "حصل خطأ أثناء تسجيل الخروج. جرّب مرة تانية."
+        );
+      }
+    };
 
   return (
     <>
       <div
         dir="rtl"
-        className="
-          min-h-screen
-          overflow-x-hidden
-          bg-white
-          text-zinc-900
-        "
+        className="min-h-screen overflow-x-hidden bg-white text-zinc-900"
       >
+
         {/* =====================================================
             MOBILE HEADER
         ====================================================== */}
@@ -341,29 +652,13 @@ function AdminLayout() {
         >
           <Link
             to="/admin"
-            className="flex items-center gap-3"
+            className="group flex items-center gap-3"
           >
-            {/* LOGO */}
-
-            <div
-              className="
-                flex
-                h-11
-                w-11
-                items-center
-                justify-center
-                overflow-hidden
-                bg-transparent
-              "
-            >
+            <div className="flex h-11 w-11 items-center justify-center overflow-hidden bg-transparent transition-transform duration-300 group-hover:scale-105">
               <img
                 src="/logo foter.jpeg"
                 alt="HIRAQL"
-                className="
-                  h-full
-                  w-full
-                  object-contain
-                "
+                className="h-full w-full object-contain"
               />
             </div>
 
@@ -382,7 +677,8 @@ function AdminLayout() {
             type="button"
             onClick={() =>
               setMobileOpen(
-                (value) => !value
+                (value) =>
+                  !value
               )
             }
             className="
@@ -431,7 +727,6 @@ function AdminLayout() {
             shadow-[0_0_40px_rgba(0,0,0,0.04)]
             transition-transform
             duration-300
-
             ${
               mobileOpen
                 ? "translate-x-0"
@@ -439,6 +734,7 @@ function AdminLayout() {
             }
           `}
         >
+
           {/* BRAND */}
 
           <div className="border-b border-zinc-200 px-5 py-5">
@@ -446,32 +742,11 @@ function AdminLayout() {
               to="/admin"
               className="group flex items-center gap-3"
             >
-              <div
-                className="
-                  flex
-                  h-14
-                  w-14
-                  shrink-0
-                  items-center
-                  justify-center
-                  overflow-hidden
-                  bg-transparent
-                  transition-transform
-                  duration-300
-                  group-hover:-translate-y-1
-                "
-              >
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden bg-transparent transition-transform duration-300 group-hover:-translate-y-1">
                 <img
                   src="/logo foter.jpeg"
                   alt="HIRAQL"
-                  className="
-                    h-full
-                    w-full
-                    object-contain
-                    transition-transform
-                    duration-300
-                    group-hover:scale-105
-                  "
+                  className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
 
@@ -490,29 +765,9 @@ function AdminLayout() {
               </div>
             </Link>
 
-            <div
-              className="
-                mt-5
-                rounded-2xl
-                border
-                border-zinc-200
-                bg-zinc-50
-                p-3
-              "
-            >
+            <div className="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
               <div className="flex items-center gap-3">
-                <div
-                  className="
-                    flex
-                    h-10
-                    w-10
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-black
-                    text-[#39ff14]
-                  "
-                >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-[#39ff14]">
                   <BarChart3 size={17} />
                 </div>
 
@@ -531,15 +786,7 @@ function AdminLayout() {
 
           {/* NAV */}
 
-          <div
-            className="
-              no-scrollbar
-              flex-1
-              overflow-y-auto
-              px-4
-              py-6
-            "
-          >
+          <div className="no-scrollbar flex-1 overflow-y-auto px-4 py-6">
             <p className="mb-3 px-3 text-[10px] font-black tracking-[0.16em] text-zinc-400">
               لوحة التحكم
             </p>
@@ -581,7 +828,6 @@ function AdminLayout() {
                         font-black
                         transition-all
                         duration-300
-
                         ${
                           isActive
                             ? "bg-black text-white shadow-lg"
@@ -605,7 +851,6 @@ function AdminLayout() {
                               rounded-xl
                               transition-all
                               duration-300
-
                               ${
                                 isActive
                                   ? "bg-[#39ff14] text-black"
@@ -642,16 +887,7 @@ function AdminLayout() {
 
             {/* CURRENT PAGE */}
 
-            <div
-              className="
-                mt-6
-                rounded-2xl
-                border
-                border-zinc-200
-                bg-zinc-50
-                p-4
-              "
-            >
+            <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
               <p className="text-[9px] font-black tracking-[0.16em] text-zinc-400">
                 CURRENT PAGE
               </p>
@@ -668,17 +904,7 @@ function AdminLayout() {
 
             {/* SOUND */}
 
-            <div
-              className="
-                mt-4
-                rounded-2xl
-                border
-                border-zinc-200
-                bg-white
-                p-4
-                shadow-sm
-              "
-            >
+            <div className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-3">
                 <div
                   className={`
@@ -688,7 +914,6 @@ function AdminLayout() {
                     items-center
                     justify-center
                     rounded-xl
-
                     ${
                       soundEnabled
                         ? "bg-[#39ff14] text-black"
@@ -706,8 +931,8 @@ function AdminLayout() {
 
                   <p className="mt-1 text-[10px] leading-5 text-zinc-400">
                     {soundEnabled
-                      ? "صوت الإشعارات مفعل"
-                      : "اضغط في الصفحة لتفعيل الصوت"}
+                      ? "الصوت مفعل ✅"
+                      : "أول ضغطة على الصفحة تفعل الصوت"}
                   </p>
                 </div>
               </div>
@@ -718,43 +943,11 @@ function AdminLayout() {
             <Link
               to="/"
               onClick={() =>
-                setMobileOpen(
-                  false
-                )
+                setMobileOpen(false)
               }
-              className="
-                group
-                mt-4
-                flex
-                items-center
-                gap-3
-                rounded-2xl
-                px-4
-                py-3
-                text-sm
-                font-black
-                text-zinc-500
-                transition-all
-                duration-300
-                hover:bg-zinc-100
-                hover:text-zinc-950
-              "
+              className="group mt-4 flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-black text-zinc-500 transition-all duration-300 hover:bg-zinc-100 hover:text-zinc-950"
             >
-              <div
-                className="
-                  flex
-                  h-10
-                  w-10
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-zinc-100
-                  text-zinc-500
-                  transition-all
-                  group-hover:bg-black
-                  group-hover:text-[#39ff14]
-                "
-              >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-500 transition-all group-hover:bg-black group-hover:text-[#39ff14]">
                 <ShoppingBag size={18} />
               </div>
 
@@ -770,13 +963,16 @@ function AdminLayout() {
 
             {/* SETTINGS */}
 
-            <button
-              type="button"
-              className="
+            <NavLink
+              to="/admin/settings"
+              onClick={() =>
+                setMobileOpen(false)
+              }
+              className={({ isActive }) =>
+                `
                 group
                 mt-2
                 flex
-                w-full
                 items-center
                 gap-3
                 rounded-2xl
@@ -784,60 +980,84 @@ function AdminLayout() {
                 py-3
                 text-sm
                 font-black
-                text-zinc-500
                 transition-all
                 duration-300
-                hover:bg-zinc-100
-                hover:text-zinc-950
-              "
+                ${
+                  isActive
+                    ? "bg-black text-white"
+                    : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950"
+                }
+                `
+              }
             >
-              <div
-                className="
-                  flex
-                  h-10
-                  w-10
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-zinc-100
-                  text-zinc-500
-                  transition-all
-                  group-hover:bg-black
-                  group-hover:text-[#39ff14]
-                "
-              >
-                <Settings size={18} />
+              {({
+                isActive,
+              }) => (
+                <>
+                  <div
+                    className={`
+                      flex
+                      h-10
+                      w-10
+                      items-center
+                      justify-center
+                      rounded-xl
+                      ${
+                        isActive
+                          ? "bg-[#39ff14] text-black"
+                          : "bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200 group-hover:text-zinc-900"
+                      }
+                    `}
+                  >
+                    <Settings size={18} />
+                  </div>
+
+                  <span className="flex-1">
+                    الإعدادات
+                  </span>
+
+                  <ChevronLeft
+                    size={15}
+                    className={
+                      isActive
+                        ? "text-[#39ff14]"
+                        : "text-zinc-300"
+                    }
+                  />
+                </>
+              )}
+            </NavLink>
+
+            {/* LOGOUT */}
+
+            <button
+              type="button"
+              onClick={
+                handleLogout
+              }
+              disabled={
+                loggingOut
+              }
+              className="group mt-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-black text-red-500 transition-all duration-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 transition-all duration-300 group-hover:bg-red-100">
+                <LogOut size={18} />
               </div>
 
-              الإعدادات
+              <span className="flex-1 text-right">
+                {loggingOut
+                  ? "جاري تسجيل الخروج..."
+                  : "تسجيل الخروج"}
+              </span>
             </button>
           </div>
 
           {/* SIDEBAR BOTTOM */}
 
           <div className="border-t border-zinc-200 p-4">
-            <div
-              className="
-                rounded-2xl
-                border
-                border-zinc-200
-                bg-zinc-50
-                p-4
-              "
-            >
+            <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
               <div className="flex items-center gap-3">
-                <div
-                  className="
-                    flex
-                    h-10
-                    w-10
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-black
-                    text-[#39ff14]
-                  "
-                >
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-[#39ff14]">
                   <Dumbbell size={17} />
                 </div>
 
@@ -855,25 +1075,18 @@ function AdminLayout() {
           </div>
         </aside>
 
-        {/* =====================================================
-            MOBILE OVERLAY
-        ====================================================== */}
+        {/* MOBILE OVERLAY */}
 
         {mobileOpen && (
           <button
             type="button"
             aria-label="إغلاق القائمة"
             onClick={() =>
-              setMobileOpen(false)
+              setMobileOpen(
+                false
+              )
             }
-            className="
-              fixed
-              inset-0
-              z-30
-              bg-black/20
-              backdrop-blur-[2px]
-              lg:hidden
-            "
+            className="fixed inset-0 z-30 bg-black/20 backdrop-blur-[2px] lg:hidden"
           />
         )}
 
@@ -882,80 +1095,34 @@ function AdminLayout() {
         ====================================================== */}
 
         {notification && (
-          <div
-            className="
-              fixed
-              left-4
-              right-4
-              top-4
-              z-[100]
-              sm:left-auto
-              sm:right-6
-              sm:w-[400px]
-            "
-          >
-            <div
-              className="
-                overflow-hidden
-                rounded-[1.7rem]
-                border
-                border-zinc-200
-                bg-white
-                text-zinc-900
-                shadow-[0_25px_70px_rgba(0,0,0,0.16)]
-              "
-            >
+          <div className="fixed left-4 right-4 top-4 z-[100] sm:left-auto sm:right-6 sm:w-[410px]">
+            <div className="overflow-hidden rounded-[1.7rem] border border-zinc-200 bg-white text-zinc-900 shadow-[0_25px_70px_rgba(0,0,0,0.16)]">
+
               <div className="h-1 bg-[#39ff14]" />
 
               <div className="p-5">
                 <div className="flex items-start gap-4">
-                  <div
-                    className="
-                      relative
-                      flex
-                      h-12
-                      w-12
-                      shrink-0
-                      items-center
-                      justify-center
-                      rounded-2xl
-                      bg-black
-                      text-[#39ff14]
-                    "
-                  >
-                    <Bell size={21} />
 
-                    <span
-                      className="
-                        absolute
-                        -right-1
-                        -top-1
-                        h-3
-                        w-3
-                        animate-ping
-                        rounded-full
-                        bg-[#39ff14]
-                      "
-                    />
+                  <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-black text-[#39ff14]">
+                    <Bell size={22} />
 
-                    <span
-                      className="
-                        absolute
-                        -right-1
-                        -top-1
-                        h-3
-                        w-3
-                        rounded-full
-                        bg-[#39ff14]
-                      "
-                    />
+                    <span className="absolute -right-1 -top-1 h-3 w-3 animate-ping rounded-full bg-[#39ff14]" />
+
+                    <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-[#39ff14]" />
                   </div>
 
                   <div className="min-w-0 flex-1">
+
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-black">
-                        طلب جديد 🔥
-                      </p>
+                      <div>
+                        <p className="text-sm font-black">
+                          طلب جديد 🔥
+                        </p>
+
+                        <p className="mt-1 text-[10px] font-black text-[#16a34a]">
+                          إشعار جديد
+                        </p>
+                      </div>
 
                       <button
                         type="button"
@@ -964,26 +1131,19 @@ function AdminLayout() {
                             null
                           )
                         }
-                        className="text-zinc-400 transition hover:text-black"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-black"
+                        aria-label="إخفاء الإشعار"
                       >
                         <X size={17} />
                       </button>
                     </div>
 
-                    <p className="mt-1 text-xs text-zinc-500">
+                    <p className="mt-2 text-xs text-zinc-500">
                       فيه طلب جديد وصل للمتجر.
                     </p>
 
-                    <div
-                      className="
-                        mt-4
-                        rounded-2xl
-                        border
-                        border-zinc-200
-                        bg-zinc-50
-                        p-3
-                      "
-                    >
+                    <div className="mt-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-[10px] text-zinc-400">
                           رقم الطلب
@@ -1022,37 +1182,54 @@ function AdminLayout() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={
-                        openOrders
-                      }
-                      className="
-                        mt-4
-                        flex
-                        h-11
-                        w-full
-                        items-center
-                        justify-center
-                        gap-2
-                        rounded-xl
-                        bg-black
-                        text-xs
-                        font-black
-                        text-white
-                        transition-all
-                        duration-300
-                        hover:-translate-y-0.5
-                        hover:bg-zinc-800
-                      "
-                    >
-                      <ClipboardList
-                        size={16}
-                        className="text-[#39ff14]"
-                      />
+                    <div className="mt-4 grid grid-cols-2 gap-2">
 
-                      فتح الطلبات
-                    </button>
+                      <button
+                        type="button"
+                        onClick={
+                          openOrders
+                        }
+                        disabled={
+                          markingSeen
+                        }
+                        className="flex h-11 items-center justify-center gap-2 rounded-xl bg-black text-xs font-black text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <ClipboardList
+                          size={16}
+                          className="text-[#39ff14]"
+                        />
+
+                        فتح الطلب
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={
+                          markNotificationAsSeen
+                        }
+                        disabled={
+                          markingSeen
+                        }
+                        className="flex h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white text-xs font-black text-zinc-700 transition-all duration-300 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <CheckCircle2
+                          size={16}
+                          className="text-[#16a34a]"
+                        />
+
+                        {markingSeen
+                          ? "جاري الحفظ..."
+                          : "تمت المشاهدة"}
+                      </button>
+
+                    </div>
+
+                    <p className="mt-3 text-center text-[9px] font-bold leading-5 text-zinc-400">
+                      الإشعار هيتقفل بعد المشاهدة،
+                      لكن الطلب يفضل محفوظ في Firebase
+                      وصفحة الطلبات.
+                    </p>
+
                   </div>
                 </div>
               </div>
@@ -1064,27 +1241,13 @@ function AdminLayout() {
             MAIN
         ====================================================== */}
 
-        <main
-          className="
-            min-h-screen
-            bg-white
-            pt-[72px]
-            lg:mr-[285px]
-            lg:pt-0
-          "
-        >
+        <main className="min-h-screen bg-white pt-[72px] lg:mr-[285px] lg:pt-0">
+
           {/* TOP BAR */}
 
-          <div
-            className="
-              hidden
-              border-b
-              border-zinc-200
-              bg-white
-              lg:block
-            "
-          >
+          <div className="hidden border-b border-zinc-200 bg-white lg:block">
             <div className="flex h-[76px] items-center justify-between px-8">
+
               <div>
                 <p className="text-[10px] font-black tracking-[0.18em] text-[#16a34a]">
                   HIRAQL / ADMIN
@@ -1096,59 +1259,55 @@ function AdminLayout() {
                 </h2>
               </div>
 
-              <Link
-                to="/"
-                className="
-                  group
-                  inline-flex
-                  items-center
-                  gap-2
-                  rounded-xl
-                  border
-                  border-zinc-200
-                  bg-white
-                  px-4
-                  py-2.5
-                  text-xs
-                  font-black
-                  text-zinc-600
-                  transition-all
-                  hover:border-black
-                  hover:bg-black
-                  hover:text-white
-                "
-              >
-                <ShoppingBag size={15} />
+              <div className="flex items-center gap-3">
 
-                فتح المتجر
+                <Link
+                  to="/admin/settings"
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs font-black text-zinc-600 transition-all hover:border-black hover:bg-zinc-50 hover:text-zinc-950"
+                >
+                  <Settings size={15} />
+                  الإعدادات
+                </Link>
 
-                <ChevronLeft
-                  size={14}
-                  className="transition-transform group-hover:-translate-x-1"
-                />
-              </Link>
+                <button
+                  type="button"
+                  onClick={
+                    handleLogout
+                  }
+                  disabled={
+                    loggingOut
+                  }
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-xs font-black text-red-600 transition-all hover:border-red-200 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <LogOut size={15} />
+
+                  {loggingOut
+                    ? "جاري الخروج..."
+                    : "خروج"}
+                </button>
+
+                <Link
+                  to="/"
+                  className="group inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs font-black text-zinc-600 transition-all hover:border-black hover:bg-black hover:text-white"
+                >
+                  <ShoppingBag size={15} />
+
+                  فتح المتجر
+
+                  <ChevronLeft
+                    size={14}
+                    className="transition-transform group-hover:-translate-x-1"
+                  />
+                </Link>
+              </div>
             </div>
           </div>
 
-          <div
-            className="
-              no-scrollbar
-              min-h-[calc(100vh-72px)]
-              overflow-y-auto
-              p-4
-              sm:p-6
-              lg:min-h-[calc(100vh-76px)]
-              lg:p-8
-            "
-          >
+          <div className="no-scrollbar min-h-[calc(100vh-72px)] overflow-y-auto p-4 sm:p-6 lg:min-h-[calc(100vh-76px)] lg:p-8">
             <Outlet />
           </div>
         </main>
       </div>
-
-      {/* =====================================================
-          HIDE SCROLLBAR
-      ====================================================== */}
 
       <style>{`
         .no-scrollbar {

@@ -50,12 +50,18 @@ export function getOrderStatusLabel(status) {
   return found?.label || "قيد المراجعة";
 }
 
+/*
+=========================================================
+ADD ORDER
+=========================================================
+*/
+
 export async function addOrderToFirebase(order) {
   const orderData = {
     orderNumber:
       order.orderNumber ||
       order.id ||
-      `ZG-${Date.now()}`,
+      `HRQL-${Date.now()}`,
 
     customer: {
       name:
@@ -74,7 +80,8 @@ export async function addOrderToFirebase(order) {
         order.customer?.notes?.trim() || "",
     },
 
-    payment: order.payment || "cod",
+    payment:
+      order.payment || "cod",
 
     items: Array.isArray(order.items)
       ? order.items.map((item) => ({
@@ -95,11 +102,38 @@ export async function addOrderToFirebase(order) {
     shipping:
       Number(order.shipping) || 0,
 
+    discount:
+      Number(order.discount) || 0,
+
+    originalTotal:
+      Number(order.originalTotal) || 0,
+
     total:
       Number(order.total) || 0,
 
+    secretReward:
+      order.secretReward || null,
+
     status:
       order.status || "pending",
+
+    /*
+     * ==================================================
+     * ADMIN NOTIFICATION
+     * ==================================================
+     *
+     * الطلب الجديد يبدأ Unread.
+     *
+     * مجرد ظهور الإشعار أو اختفائه من الشاشة
+     * لا يحذف الطلب.
+     *
+     * لما الأدمن يشوفه، هنغير:
+     * adminNotificationSeen = true
+     */
+
+    adminNotificationSeen: false,
+
+    adminNotificationSeenAt: null,
 
     createdAt:
       serverTimestamp(),
@@ -126,6 +160,12 @@ export async function addOrderToFirebase(order) {
   };
 }
 
+/*
+=========================================================
+GET ORDERS
+=========================================================
+*/
+
 export async function getOrdersFromFirebase() {
   const ordersRef =
     collection(
@@ -133,36 +173,68 @@ export async function getOrdersFromFirebase() {
       ORDERS_COLLECTION
     );
 
-  const ordersQuery =
-    query(
-      ordersRef,
-      orderBy(
-        "createdAt",
-        "desc"
-      )
+  try {
+    const ordersQuery =
+      query(
+        ordersRef,
+        orderBy(
+          "createdAt",
+          "desc"
+        )
+      );
+
+    const snapshot =
+      await getDocs(
+        ordersQuery
+      );
+
+    return snapshot.docs.map(
+      (item) => ({
+        id: item.id,
+        ...item.data(),
+      })
+    );
+  } catch (error) {
+    console.error(
+      "Ordered orders query failed:",
+      error
     );
 
-  const snapshot =
-    await getDocs(
-      ordersQuery
-    );
+    const snapshot =
+      await getDocs(
+        ordersRef
+      );
 
-  return snapshot.docs.map(
-    (item) => ({
-      id: item.id,
-      ...item.data(),
-    })
-  );
+    const orders =
+      snapshot.docs.map(
+        (item) => ({
+          id: item.id,
+          ...item.data(),
+        })
+      );
+
+    return orders.sort(
+      (a, b) => {
+        const aTime =
+          a.createdAt?.seconds || 0;
+
+        const bTime =
+          b.createdAt?.seconds || 0;
+
+        return (
+          bTime - aTime
+        );
+      }
+    );
+  }
 }
 
-/**
- * متابعة الطلبات بشكل لحظي.
- *
- * callback:
- * (orders, changes) => {}
- *
- * changes فيها الطلبات الجديدة/المعدلة/المحذوفة.
- */
+/*
+=========================================================
+REALTIME ORDERS
+=========================================================
+*/
+
 export function subscribeToOrders(
   callback,
   onError
@@ -198,9 +270,11 @@ export function subscribeToOrders(
           (change) => ({
             type:
               change.type,
+
             order: {
               id:
                 change.doc.id,
+
               ...change.doc.data(),
             },
           })
@@ -223,6 +297,56 @@ export function subscribeToOrders(
     }
   );
 }
+
+/*
+=========================================================
+MARK ORDER NOTIFICATION AS SEEN
+=========================================================
+*/
+
+export async function markOrderNotificationAsSeen(
+  orderId
+) {
+  if (!orderId) {
+    throw new Error(
+      "رقم الطلب غير موجود."
+    );
+  }
+
+  const orderRef =
+    doc(
+      db,
+      ORDERS_COLLECTION,
+      orderId
+    );
+
+  await updateDoc(
+    orderRef,
+    {
+      /*
+       * الطلب يفضل موجود.
+       * إحنا بنغير حالة الإشعار فقط.
+       */
+
+      adminNotificationSeen:
+        true,
+
+      adminNotificationSeenAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp(),
+    }
+  );
+
+  return true;
+}
+
+/*
+=========================================================
+UPDATE ORDER STATUS
+=========================================================
+*/
 
 export async function updateOrderStatusInFirebase(
   orderId,
@@ -257,6 +381,7 @@ export async function updateOrderStatusInFirebase(
     orderRef,
     {
       status,
+
       updatedAt:
         serverTimestamp(),
     }
@@ -264,6 +389,12 @@ export async function updateOrderStatusInFirebase(
 
   return true;
 }
+
+/*
+=========================================================
+DELETE ORDER
+=========================================================
+*/
 
 export async function deleteOrderFromFirebase(
   orderId

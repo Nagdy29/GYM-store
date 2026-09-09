@@ -39,20 +39,85 @@ const emptyForm = {
   category: "",
   categoryName: "",
   image: "",
-  sizes: "",
-  colors: "",
+  sizes: [],
+  colors: [],
+  customColor: "",
   badge: "",
   stock: "",
 };
 
 /*
  * ==========================================
+ * المقاسات الجاهزة
+ * ==========================================
+ */
+
+const SIZE_OPTIONS = [
+  "XS",
+  "S",
+  "M",
+  "L",
+  "XL",
+  "XXL",
+  "3XL",
+  "4XL",
+];
+
+/*
+ * ==========================================
+ * الألوان الجاهزة
+ * ==========================================
+ */
+
+const COLOR_OPTIONS = [
+  {
+    name: "أبيض",
+    value: "أبيض",
+    className:
+      "bg-white border-zinc-300 text-zinc-800",
+  },
+  {
+    name: "أسود",
+    value: "أسود",
+    className:
+      "bg-black border-black text-white",
+  },
+  {
+    name: "أحمر",
+    value: "أحمر",
+    className:
+      "bg-red-500 border-red-500 text-white",
+  },
+  {
+    name: "أزرق",
+    value: "أزرق",
+    className:
+      "bg-blue-500 border-blue-500 text-white",
+  },
+  {
+    name: "أخضر",
+    value: "أخضر",
+    className:
+      "bg-green-500 border-green-500 text-white",
+  },
+  {
+    name: "رمادي",
+    value: "رمادي",
+    className:
+      "bg-zinc-500 border-zinc-500 text-white",
+  },
+  {
+    name: "كحلي",
+    value: "كحلي",
+    className:
+      "bg-slate-900 border-slate-900 text-white",
+  },
+];
+
+/*
+ * ==========================================
  * المنتجات التجريبية
  * ==========================================
- *
- * مهم:
- * category هنا عبارة عن slug قديم
- * والكود تحت هيحاول يطابقه مع Firebase.
  */
 
 const demoProducts = [
@@ -67,8 +132,15 @@ const demoProducts = [
     categoryName: "تيشيرتات جيم",
     image:
       "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80",
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["أسود"],
+    sizes: [
+      "S",
+      "M",
+      "L",
+      "XL",
+    ],
+    colors: [
+      "أسود",
+    ],
     badge: "الأكثر مبيعًا",
     stock: 25,
   },
@@ -83,8 +155,15 @@ const demoProducts = [
     categoryName: "تيشيرتات جيم",
     image:
       "https://images.unsplash.com/photo-1583743814966-8936f37f4678?auto=format&fit=crop&w=900&q=80",
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["أبيض"],
+    sizes: [
+      "S",
+      "M",
+      "L",
+      "XL",
+    ],
+    colors: [
+      "أبيض",
+    ],
     badge: "جديد",
     stock: 20,
   },
@@ -99,8 +178,15 @@ const demoProducts = [
     categoryName: "بنطلونات جيم",
     image:
       "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?auto=format&fit=crop&w=900&q=80",
-    sizes: ["M", "L", "XL", "XXL"],
-    colors: ["أسود"],
+    sizes: [
+      "M",
+      "L",
+      "XL",
+      "XXL",
+    ],
+    colors: [
+      "أسود",
+    ],
     badge: "خصم",
     stock: 15,
   },
@@ -115,8 +201,15 @@ const demoProducts = [
     categoryName: "شورتات جيم",
     image:
       "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&w=900&q=80",
-    sizes: ["M", "L", "XL"],
-    colors: ["أسود", "رمادي"],
+    sizes: [
+      "M",
+      "L",
+      "XL",
+    ],
+    colors: [
+      "أسود",
+      "رمادي",
+    ],
     badge: "عرض",
     stock: 30,
   },
@@ -132,7 +225,9 @@ const demoProducts = [
     image:
       "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=900&q=80",
     sizes: [],
-    colors: ["أسود"],
+    colors: [
+      "أسود",
+    ],
     badge: "مميز",
     stock: 12,
   },
@@ -145,30 +240,26 @@ const demoProducts = [
  */
 
 function normalizeImageUrl(value) {
-  const url = String(value || "").trim();
+  const url = String(
+    value || ""
+  ).trim();
 
   if (!url) {
     return "";
   }
 
-  /*
-   * Google Drive file
-   */
-
-  const driveFileMatch = url.match(
-    /drive\.google\.com\/file\/d\/([^/]+)/
-  );
+  const driveFileMatch =
+    url.match(
+      /drive\.google\.com\/file\/d\/([^/]+)/
+    );
 
   if (driveFileMatch?.[1]) {
     return `https://drive.google.com/uc?export=view&id=${driveFileMatch[1]}`;
   }
 
-  /*
-   * Google Drive open?id=
-   */
-
   try {
-    const parsedUrl = new URL(url);
+    const parsedUrl =
+      new URL(url);
 
     if (
       parsedUrl.hostname.includes(
@@ -176,19 +267,17 @@ function normalizeImageUrl(value) {
       )
     ) {
       const driveId =
-        parsedUrl.searchParams.get("id");
+        parsedUrl.searchParams.get(
+          "id"
+        );
 
       if (driveId) {
         return `https://drive.google.com/uc?export=view&id=${driveId}`;
       }
     }
   } catch {
-    // تجاهل الرابط غير الصحيح
+    // تجاهل
   }
-
-  /*
-   * Google Drive uc?id=
-   */
 
   if (
     url.includes(
@@ -197,10 +286,13 @@ function normalizeImageUrl(value) {
     url.includes("id=")
   ) {
     try {
-      const parsedUrl = new URL(url);
+      const parsedUrl =
+        new URL(url);
 
       const driveId =
-        parsedUrl.searchParams.get("id");
+        parsedUrl.searchParams.get(
+          "id"
+        );
 
       if (driveId) {
         return `https://drive.google.com/uc?export=view&id=${driveId}`;
@@ -209,10 +301,6 @@ function normalizeImageUrl(value) {
       // تجاهل
     }
   }
-
-  /*
-   * Google Drive open
-   */
 
   if (
     url.includes(
@@ -220,10 +308,13 @@ function normalizeImageUrl(value) {
     )
   ) {
     try {
-      const parsedUrl = new URL(url);
+      const parsedUrl =
+        new URL(url);
 
       const driveId =
-        parsedUrl.searchParams.get("id");
+        parsedUrl.searchParams.get(
+          "id"
+        );
 
       if (driveId) {
         return `https://drive.google.com/uc?export=view&id=${driveId}`;
@@ -232,10 +323,6 @@ function normalizeImageUrl(value) {
       // تجاهل
     }
   }
-
-  /*
-   * ImgBB / Imgur direct
-   */
 
   if (
     url.includes("i.ibb.co") ||
@@ -254,7 +341,9 @@ function normalizeImageUrl(value) {
  */
 
 function getImageUrlType(value) {
-  const url = String(value || "").trim();
+  const url = String(
+    value || ""
+  ).trim();
 
   if (!url) {
     return "empty";
@@ -298,8 +387,10 @@ function AdminProducts() {
   const [loading, setLoading] =
     useState(true);
 
-  const [categoriesLoading, setCategoriesLoading] =
-    useState(true);
+  const [
+    categoriesLoading,
+    setCategoriesLoading,
+  ] = useState(true);
 
   const [saving, setSaving] =
     useState(false);
@@ -316,11 +407,15 @@ function AdminProducts() {
   const [showModal, setShowModal] =
     useState(false);
 
-  const [editingProduct, setEditingProduct] =
-    useState(null);
+  const [
+    editingProduct,
+    setEditingProduct,
+  ] = useState(null);
 
-  const [deleteProduct, setDeleteProduct] =
-    useState(null);
+  const [
+    deleteProduct,
+    setDeleteProduct,
+  ] = useState(null);
 
   const [form, setForm] =
     useState(emptyForm);
@@ -331,76 +426,86 @@ function AdminProducts() {
    * ==========================================
    */
 
-  const loadProducts = useCallback(
-    async () => {
-      try {
-        setLoading(true);
-        setError("");
+  const loadProducts =
+    useCallback(
+      async () => {
+        try {
+          setLoading(true);
+          setError("");
 
-        const firebaseProducts =
-          await getProductsFromFirebase();
+          const firebaseProducts =
+            await getProductsFromFirebase();
 
-        setProducts(
-          Array.isArray(firebaseProducts)
-            ? firebaseProducts
-            : []
-        );
-      } catch (error) {
-        console.error(
-          "Firebase products error:",
-          error
-        );
+          setProducts(
+            Array.isArray(
+              firebaseProducts
+            )
+              ? firebaseProducts
+              : []
+          );
+        } catch (error) {
+          console.error(
+            "Firebase products error:",
+            error
+          );
 
-        setError(
-          "حصل خطأ في تحميل المنتجات من Firebase. اتأكد إن Firestore متفعل وقواعد الوصول مظبوطة."
-        );
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+          setError(
+            "حصل خطأ في تحميل المنتجات من Firebase. اتأكد إن Firestore متفعل وقواعد الوصول مظبوطة."
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      []
+    );
 
   /*
    * ==========================================
-   * تحميل الأقسام من Firebase
+   * تحميل الأقسام
    * ==========================================
    */
 
   const loadCategories =
-    useCallback(async () => {
-      try {
-        setCategoriesLoading(true);
+    useCallback(
+      async () => {
+        try {
+          setCategoriesLoading(
+            true
+          );
 
-        const firebaseCategories =
-          await getCategoriesFromFirebase();
+          const firebaseCategories =
+            await getCategoriesFromFirebase();
 
-        setCategories(
-          Array.isArray(
-            firebaseCategories
-          )
-            ? firebaseCategories
-            : []
-        );
-      } catch (error) {
-        console.error(
-          "Firebase categories error:",
-          error
-        );
+          setCategories(
+            Array.isArray(
+              firebaseCategories
+            )
+              ? firebaseCategories
+              : []
+          );
+        } catch (error) {
+          console.error(
+            "Firebase categories error:",
+            error
+          );
 
-        setCategories([]);
+          setCategories([]);
 
-        setError(
-          "حصل خطأ في تحميل الأقسام من Firebase. اتأكد إن الأقسام موجودة وقواعد Firestore مظبوطة."
-        );
-      } finally {
-        setCategoriesLoading(false);
-      }
-    }, []);
+          setError(
+            "حصل خطأ في تحميل الأقسام من Firebase."
+          );
+        } finally {
+          setCategoriesLoading(
+            false
+          );
+        }
+      },
+      []
+    );
 
   /*
    * ==========================================
-   * تحميل كل البيانات
+   * LOAD
    * ==========================================
    */
 
@@ -414,7 +519,7 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * مطابقة قسم تجريبي مع Firebase
+   * MATCH DEMO CATEGORY
    * ==========================================
    */
 
@@ -423,7 +528,8 @@ function AdminProducts() {
   ) => {
     const demoCategory =
       String(
-        demoProduct.category || ""
+        demoProduct.category ||
+          ""
       )
         .trim()
         .toLowerCase();
@@ -438,23 +544,26 @@ function AdminProducts() {
 
     return categories.find(
       (category) => {
-        const id = String(
-          category.id || ""
-        )
-          .trim()
-          .toLowerCase();
+        const id =
+          String(
+            category.id || ""
+          )
+            .trim()
+            .toLowerCase();
 
-        const slug = String(
-          category.slug || ""
-        )
-          .trim()
-          .toLowerCase();
+        const slug =
+          String(
+            category.slug || ""
+          )
+            .trim()
+            .toLowerCase();
 
-        const name = String(
-          category.name || ""
-        )
-          .trim()
-          .toLowerCase();
+        const name =
+          String(
+            category.name || ""
+          )
+            .trim()
+            .toLowerCase();
 
         return (
           id === demoCategory ||
@@ -468,7 +577,7 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * إضافة المنتجات التجريبية
+   * ADD DEMO PRODUCTS
    * ==========================================
    */
 
@@ -482,7 +591,8 @@ function AdminProducts() {
       }
 
       if (
-        categories.length === 0
+        categories.length ===
+        0
       ) {
         setError(
           "لازم تضيف الأقسام من لوحة التحكم الأول قبل إضافة المنتجات التجريبية."
@@ -499,51 +609,64 @@ function AdminProducts() {
         let addedCount = 0;
         let skippedCount = 0;
 
-        for (const product of demoProducts) {
+        for (
+          const product of demoProducts
+        ) {
           const firebaseCategory =
             findDemoCategory(
               product
             );
 
-          if (!firebaseCategory) {
-            console.warn(
-              "Demo category not found:",
-              product.category,
-              product.categoryName
-            );
-
-            skippedCount += 1;
+          if (
+            !firebaseCategory
+          ) {
+            skippedCount +=
+              1;
             continue;
           }
 
-          await addProductToFirebase({
-            ...product,
-
-            category:
-              firebaseCategory.id,
-
-            categoryName:
-              firebaseCategory.name,
-
-            image:
-              normalizeImageUrl(
-                product.image
-              ),
-          });
+          await addProductToFirebase(
+            {
+              ...product,
+              category:
+                firebaseCategory.id,
+              categoryName:
+                firebaseCategory.name,
+              image:
+                normalizeImageUrl(
+                  product.image
+                ),
+              sizes:
+                Array.isArray(
+                  product.sizes
+                )
+                  ? product.sizes
+                  : [],
+              colors:
+                Array.isArray(
+                  product.colors
+                )
+                  ? product.colors
+                  : [],
+            }
+          );
 
           addedCount += 1;
         }
 
         await loadProducts();
 
-        if (addedCount === 0) {
+        if (
+          addedCount === 0
+        ) {
           setError(
-            "ملقيناش أي قسم مطابق للمنتجات التجريبية. أضف الأقسام المطلوبة من Firebase الأول."
+            "ملقيناش أي قسم مطابق للمنتجات التجريبية."
           );
         } else {
           setSuccess(
             `تم إضافة ${addedCount} منتجات تجريبية بنجاح ✅${
-              skippedCount > 0
+              skippedCount >
+              0
                 ? ` وتم تخطي ${skippedCount} بسبب عدم وجود القسم المطابق.`
                 : ""
             }`
@@ -556,7 +679,7 @@ function AdminProducts() {
         );
 
         setError(
-          "حصل خطأ أثناء إضافة المنتجات التجريبية. اتأكد من اتصال Firebase وقواعد Firestore."
+          "حصل خطأ أثناء إضافة المنتجات التجريبية."
         );
       } finally {
         setAddingDemo(false);
@@ -565,15 +688,16 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * البحث
+   * SEARCH
    * ==========================================
    */
 
   const filteredProducts =
     useMemo(() => {
-      const value = search
-        .trim()
-        .toLowerCase();
+      const value =
+        search
+          .trim()
+          .toLowerCase();
 
       if (!value) {
         return products;
@@ -581,9 +705,11 @@ function AdminProducts() {
 
       return products.filter(
         (product) => {
-          const name = String(
-            product.name || ""
-          ).toLowerCase();
+          const name =
+            String(
+              product.name ||
+                ""
+            ).toLowerCase();
 
           const categoryName =
             String(
@@ -600,12 +726,17 @@ function AdminProducts() {
 
           const firebaseCategoryName =
             String(
-              category?.name || ""
+              category?.name ||
+                ""
             ).toLowerCase();
 
           return (
-            name.includes(value) ||
-            categoryName.includes(value) ||
+            name.includes(
+              value
+            ) ||
+            categoryName.includes(
+              value
+            ) ||
             firebaseCategoryName.includes(
               value
             )
@@ -620,7 +751,7 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * فتح إضافة منتج
+   * OPEN ADD
    * ==========================================
    */
 
@@ -629,6 +760,9 @@ function AdminProducts() {
 
     setForm({
       ...emptyForm,
+      sizes: [],
+      colors: [],
+      customColor: "",
     });
 
     setError("");
@@ -638,104 +772,109 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * فتح تعديل منتج
+   * OPEN EDIT
    * ==========================================
    */
 
-  const handleOpenEdit =
-    (product) => {
-      setEditingProduct(product);
+  const handleOpenEdit = (
+    product
+  ) => {
+    setEditingProduct(
+      product
+    );
 
-      const firebaseCategory =
-        categories.find(
-          (category) =>
-            category.id ===
-            product.category
-        );
-
-      setForm({
-        name:
-          product.name || "",
-
-        description:
-          product.description ||
-          "",
-
-        price:
-          product.price ?? "",
-
-        oldPrice:
-          product.oldPrice ?? "",
-
-        discount:
-          product.discount ?? "",
-
-        category:
-          product.category || "",
-
-        categoryName:
-          firebaseCategory?.name ||
-          product.categoryName ||
-          "",
-
-        image:
-          product.image || "",
-
-        sizes:
-          Array.isArray(
-            product.sizes
-          )
-            ? product.sizes.join(
-                ", "
-              )
-            : "",
-
-        colors:
-          Array.isArray(
-            product.colors
-          )
-            ? product.colors.join(
-                ", "
-              )
-            : "",
-
-        badge:
-          product.badge || "",
-
-        stock:
-          product.stock ?? "",
-      });
-
-      setError("");
-      setSuccess("");
-      setShowModal(true);
-    };
-
-  /*
-   * ==========================================
-   * إغلاق المودال
-   * ==========================================
-   */
-
-  const handleCloseModal = () => {
-    if (saving) {
-      return;
-    }
-
-    setShowModal(false);
-    setEditingProduct(null);
+    const firebaseCategory =
+      categories.find(
+        (category) =>
+          category.id ===
+          product.category
+      );
 
     setForm({
-      ...emptyForm,
+      name:
+        product.name || "",
+
+      description:
+        product.description ||
+        "",
+
+      price:
+        product.price ?? "",
+
+      oldPrice:
+        product.oldPrice ?? "",
+
+      discount:
+        product.discount ?? "",
+
+      category:
+        product.category || "",
+
+      categoryName:
+        firebaseCategory?.name ||
+        product.categoryName ||
+        "",
+
+      image:
+        product.image || "",
+
+      sizes:
+        Array.isArray(
+          product.sizes
+        )
+          ? product.sizes
+          : [],
+
+      colors:
+        Array.isArray(
+          product.colors
+        )
+          ? product.colors
+          : [],
+
+      customColor: "",
+
+      badge:
+        product.badge || "",
+
+      stock:
+        product.stock ?? "",
     });
 
     setError("");
     setSuccess("");
+    setShowModal(true);
   };
 
   /*
    * ==========================================
-   * تغيير البيانات
+   * CLOSE MODAL
+   * ==========================================
+   */
+
+  const handleCloseModal =
+    () => {
+      if (saving) {
+        return;
+      }
+
+      setShowModal(false);
+      setEditingProduct(null);
+
+      setForm({
+        ...emptyForm,
+        sizes: [],
+        colors: [],
+        customColor: "",
+      });
+
+      setError("");
+      setSuccess("");
+    };
+
+  /*
+   * ==========================================
+   * CHANGE
    * ==========================================
    */
 
@@ -764,56 +903,210 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * اختيار القسم من Firebase
+   * CATEGORY CHANGE
    * ==========================================
    */
 
-  const handleCategoryChange = (
-    event
+  const handleCategoryChange =
+    (event) => {
+      const categoryId =
+        event.target.value;
+
+      const selectedCategory =
+        categories.find(
+          (category) =>
+            category.id ===
+            categoryId
+        );
+
+      setForm((current) => ({
+        ...current,
+        category:
+          categoryId,
+        categoryName:
+          selectedCategory?.name ||
+          "",
+      }));
+
+      setError("");
+    };
+
+  /*
+   * ==========================================
+   * SIZE TOGGLE
+   * ==========================================
+   */
+
+  const toggleSize = (
+    size
   ) => {
-    const categoryId =
-      event.target.value;
+    setForm((current) => {
+      const currentSizes =
+        Array.isArray(
+          current.sizes
+        )
+          ? current.sizes
+          : [];
 
-    const selectedCategory =
-      categories.find(
-        (category) =>
-          category.id ===
-          categoryId
-      );
+      const exists =
+        currentSizes.includes(
+          size
+        );
 
-    setForm((current) => ({
-      ...current,
-      category:
-        categoryId,
-
-      categoryName:
-        selectedCategory?.name ||
-        "",
-    }));
+      return {
+        ...current,
+        sizes: exists
+          ? currentSizes.filter(
+              (item) =>
+                item !== size
+            )
+          : [
+              ...currentSizes,
+              size,
+            ],
+      };
+    });
 
     setError("");
   };
 
   /*
    * ==========================================
-   * تحويل النص إلى Array
+   * SELECT ALL SIZES
    * ==========================================
    */
 
-  const convertToArray = (
-    value
-  ) => {
-    return String(value || "")
-      .split(",")
-      .map((item) =>
-        item.trim()
-      )
-      .filter(Boolean);
+  const selectAllSizes =
+    () => {
+      setForm((current) => ({
+        ...current,
+        sizes: [
+          ...SIZE_OPTIONS,
+        ],
+      }));
+    };
+
+  /*
+   * ==========================================
+   * CLEAR SIZES
+   * ==========================================
+   */
+
+  const clearSizes = () => {
+    setForm((current) => ({
+      ...current,
+      sizes: [],
+    }));
   };
 
   /*
    * ==========================================
-   * رفع الصور
+   * COLOR TOGGLE
+   * ==========================================
+   */
+
+  const toggleColor = (
+    color
+  ) => {
+    setForm((current) => {
+      const currentColors =
+        Array.isArray(
+          current.colors
+        )
+          ? current.colors
+          : [];
+
+      const exists =
+        currentColors.includes(
+          color
+        );
+
+      return {
+        ...current,
+        colors: exists
+          ? currentColors.filter(
+              (item) =>
+                item !== color
+            )
+          : [
+              ...currentColors,
+              color,
+            ],
+      };
+    });
+
+    setError("");
+  };
+
+  /*
+   * ==========================================
+   * ADD CUSTOM COLOR
+   * ==========================================
+   */
+
+  const handleAddCustomColor =
+    () => {
+      const customColor =
+        String(
+          form.customColor ||
+            ""
+        ).trim();
+
+      if (!customColor) {
+        return;
+      }
+
+      const exists =
+        form.colors.includes(
+          customColor
+        );
+
+      if (exists) {
+        setForm((current) => ({
+          ...current,
+          customColor: "",
+        }));
+
+        return;
+      }
+
+      setForm((current) => ({
+        ...current,
+
+        colors: [
+          ...current.colors,
+          customColor,
+        ],
+
+        customColor: "",
+      }));
+
+      setError("");
+    };
+
+  /*
+   * ==========================================
+   * REMOVE CUSTOM / ANY COLOR
+   * ==========================================
+   */
+
+  const removeColor = (
+    color
+  ) => {
+    setForm((current) => ({
+      ...current,
+
+      colors:
+        current.colors.filter(
+          (item) =>
+            item !== color
+        ),
+    }));
+  };
+
+  /*
+   * ==========================================
+   * IMAGE UPLOADER
    * ==========================================
    */
 
@@ -828,7 +1121,7 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * فتح Google Drive
+   * GOOGLE DRIVE
    * ==========================================
    */
 
@@ -842,7 +1135,7 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * التحقق من البيانات
+   * VALIDATE
    * ==========================================
    */
 
@@ -853,7 +1146,8 @@ function AdminProducts() {
 
     if (
       !form.price ||
-      Number(form.price) <= 0
+      Number(form.price) <=
+        0
     ) {
       return "اكتب سعر صحيح للمنتج.";
     }
@@ -870,7 +1164,7 @@ function AdminProducts() {
       );
 
     if (!selectedCategory) {
-      return "القسم المختار غير موجود في Firebase. حدّث الأقسام وجرب تاني.";
+      return "القسم المختار غير موجود في Firebase.";
     }
 
     if (
@@ -882,8 +1176,12 @@ function AdminProducts() {
 
     if (
       form.discount !== "" &&
-      (Number(form.discount) < 0 ||
-        Number(form.discount) > 100)
+      (Number(
+        form.discount
+      ) < 0 ||
+        Number(
+          form.discount
+        ) > 100)
     ) {
       return "الخصم لازم يكون بين 0 و 100.";
     }
@@ -893,9 +1191,7 @@ function AdminProducts() {
         form.image
       ) === "imgbb-page"
     ) {
-      return (
-        "رابط ImgBB ده رابط صفحة مش رابط الصورة. انسخ Direct Link اللي بيبدأ بـ https://i.ibb.co/"
-      );
+      return "رابط ImgBB ده رابط صفحة مش رابط الصورة. استخدم Direct Link.";
     }
 
     return "";
@@ -903,144 +1199,159 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * حفظ المنتج
+   * SAVE PRODUCT
    * ==========================================
    */
 
-  const handleSubmit = async (
-    event
-  ) => {
-    event.preventDefault();
+  const handleSubmit =
+    async (event) => {
+      event.preventDefault();
 
-    const validationError =
-      validateForm();
+      const validationError =
+        validateForm();
 
-    if (validationError) {
-      setError(
-        validationError
-      );
-      return;
-    }
-
-    const selectedCategory =
-      categories.find(
-        (category) =>
-          category.id ===
-          form.category
-      );
-
-    const normalizedImage =
-      normalizeImageUrl(
-        form.image
-      );
-
-    const productData = {
-      name:
-        form.name.trim(),
-
-      description:
-        form.description.trim(),
-
-      price:
-        Number(form.price),
-
-      oldPrice:
-        form.oldPrice === ""
-          ? 0
-          : Number(
-              form.oldPrice
-            ),
-
-      discount:
-        form.discount === ""
-          ? 0
-          : Number(
-              form.discount
-            ),
-
-      category:
-        selectedCategory.id,
-
-      categoryName:
-        selectedCategory.name,
-
-      image:
-        normalizedImage,
-
-      sizes:
-        convertToArray(
-          form.sizes
-        ),
-
-      colors:
-        convertToArray(
-          form.colors
-        ),
-
-      badge:
-        form.badge.trim(),
-
-      stock:
-        form.stock === ""
-          ? 0
-          : Number(form.stock),
-    };
-
-    try {
-      setSaving(true);
-      setError("");
-      setSuccess("");
-
-      if (editingProduct) {
-        await updateProductInFirebase(
-          editingProduct.id,
-          productData
+      if (validationError) {
+        setError(
+          validationError
         );
 
-        setSuccess(
-          "تم تعديل المنتج بنجاح ✅"
-        );
-      } else {
-        await addProductToFirebase(
-          productData
-        );
-
-        setSuccess(
-          "تم إضافة المنتج بنجاح ✅"
-        );
+        return;
       }
 
-      await loadProducts();
-
-      setTimeout(() => {
-        setShowModal(false);
-        setEditingProduct(
-          null
+      const selectedCategory =
+        categories.find(
+          (category) =>
+            category.id ===
+            form.category
         );
 
-        setForm({
-          ...emptyForm,
-        });
+      const normalizedImage =
+        normalizeImageUrl(
+          form.image
+        );
 
+      const productData = {
+        name:
+          form.name.trim(),
+
+        description:
+          form.description.trim(),
+
+        price:
+          Number(form.price),
+
+        oldPrice:
+          form.oldPrice === ""
+            ? 0
+            : Number(
+                form.oldPrice
+              ),
+
+        discount:
+          form.discount === ""
+            ? 0
+            : Number(
+                form.discount
+              ),
+
+        category:
+          selectedCategory.id,
+
+        categoryName:
+          selectedCategory.name,
+
+        image:
+          normalizedImage,
+
+        sizes:
+          Array.isArray(
+            form.sizes
+          )
+            ? form.sizes
+            : [],
+
+        colors:
+          Array.isArray(
+            form.colors
+          )
+            ? form.colors
+            : [],
+
+        badge:
+          form.badge.trim(),
+
+        stock:
+          form.stock === ""
+            ? 0
+            : Number(
+                form.stock
+              ),
+      };
+
+      try {
+        setSaving(true);
+        setError("");
         setSuccess("");
-      }, 800);
-    } catch (error) {
-      console.error(
-        "Save product error:",
-        error
-      );
 
-      setError(
-        "حصل خطأ أثناء حفظ المنتج في Firebase."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
+        if (
+          editingProduct
+        ) {
+          await updateProductInFirebase(
+            editingProduct.id,
+            productData
+          );
+
+          setSuccess(
+            "تم تعديل المنتج بنجاح ✅"
+          );
+        } else {
+          await addProductToFirebase(
+            productData
+          );
+
+          setSuccess(
+            "تم إضافة المنتج بنجاح ✅"
+          );
+        }
+
+        await loadProducts();
+
+        setTimeout(() => {
+          setShowModal(
+            false
+          );
+
+          setEditingProduct(
+            null
+          );
+
+          setForm({
+            ...emptyForm,
+            sizes: [],
+            colors: [],
+            customColor:
+              "",
+          });
+
+          setSuccess("");
+        }, 800);
+      } catch (error) {
+        console.error(
+          "Save product error:",
+          error
+        );
+
+        setError(
+          "حصل خطأ أثناء حفظ المنتج في Firebase."
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
 
   /*
    * ==========================================
-   * حذف المنتج
+   * DELETE
    * ==========================================
    */
 
@@ -1090,7 +1401,7 @@ function AdminProducts() {
 
   /*
    * ==========================================
-   * نوع رابط الصورة الحالي
+   * IMAGE TYPE
    * ==========================================
    */
 
@@ -1101,9 +1412,13 @@ function AdminProducts() {
 
   return (
     <div dir="rtl">
-      {/* HEADER */}
+
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+
         <div>
           <span className="text-xs font-black text-[#16a34a]">
             ADMIN / PRODUCTS
@@ -1120,9 +1435,12 @@ function AdminProducts() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+
           <button
             type="button"
-            onClick={loadProducts}
+            onClick={
+              loadProducts
+            }
             disabled={
               loading ||
               addingDemo
@@ -1152,6 +1470,7 @@ function AdminProducts() {
 
             إضافة منتج
           </button>
+
         </div>
       </div>
 
@@ -1184,9 +1503,12 @@ function AdminProducts() {
 
         <input
           value={search}
-          onChange={(event) =>
+          onChange={(
+            event
+          ) =>
             setSearch(
-              event.target.value
+              event.target
+                .value
             )
           }
           placeholder="ابحث عن منتج أو قسم..."
@@ -1197,7 +1519,9 @@ function AdminProducts() {
       {/* CATEGORY STATUS */}
 
       <div className="mt-5 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4">
+
         <div className="flex items-center gap-2">
+
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black text-[#39ff14]">
             <FlaskConical size={16} />
           </div>
@@ -1211,11 +1535,16 @@ function AdminProducts() {
               مصدرها Firebase
             </p>
           </div>
+
         </div>
 
         <div className="mr-auto flex items-center gap-2">
+
           <span className="rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-black text-zinc-700">
-            {categories.length} قسم
+            {
+              categories.length
+            }{" "}
+            قسم
           </span>
 
           <button
@@ -1239,6 +1568,7 @@ function AdminProducts() {
 
             تحديث الأقسام
           </button>
+
         </div>
       </div>
 
@@ -1246,6 +1576,7 @@ function AdminProducts() {
 
       {loading && (
         <div className="mt-6 rounded-3xl border border-zinc-200 bg-white p-16 text-center">
+
           <LoaderCircle
             size={35}
             className="mx-auto animate-spin text-[#16a34a]"
@@ -1254,30 +1585,39 @@ function AdminProducts() {
           <p className="mt-4 text-sm font-black text-zinc-700">
             جاري تحميل المنتجات...
           </p>
+
         </div>
       )}
 
       {/* MOBILE */}
 
       {!loading &&
-        filteredProducts.length > 0 && (
+        filteredProducts.length >
+          0 && (
           <div className="mt-6 grid gap-4 md:hidden">
+
             {filteredProducts.map(
               (product) => {
                 const firebaseCategory =
                   categories.find(
-                    (category) =>
+                    (
+                      category
+                    ) =>
                       category.id ===
                       product.category
                   );
 
                 return (
                   <div
-                    key={product.id}
+                    key={
+                      product.id
+                    }
                     className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm"
                   >
                     <div className="flex gap-4">
+
                       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-zinc-100">
+
                         {product.image ? (
                           <img
                             src={
@@ -1297,24 +1637,28 @@ function AdminProducts() {
                         ) : (
                           <div className="flex h-full items-center justify-center">
                             <ImageOff
-                              size={
-                                22
-                              }
+                              size={22}
                               className="text-zinc-300"
                             />
                           </div>
                         )}
+
                       </div>
 
                       <div className="min-w-0 flex-1">
+
                         <p className="text-[10px] font-bold text-zinc-400">
-                          {firebaseCategory?.name ||
+                          {
+                            firebaseCategory?.name ||
                             product.categoryName ||
-                            "بدون قسم"}
+                            "بدون قسم"
+                          }
                         </p>
 
                         <h3 className="mt-1 line-clamp-2 text-sm font-black">
-                          {product.name}
+                          {
+                            product.name
+                          }
                         </h3>
 
                         <p className="mt-2 font-black">
@@ -1338,6 +1682,7 @@ function AdminProducts() {
                         </p>
 
                         <div className="mt-3 flex gap-2">
+
                           <button
                             type="button"
                             onClick={() =>
@@ -1369,6 +1714,7 @@ function AdminProducts() {
 
                             حذف
                           </button>
+
                         </div>
                       </div>
                     </div>
@@ -1376,18 +1722,24 @@ function AdminProducts() {
                 );
               }
             )}
+
           </div>
         )}
 
       {/* DESKTOP TABLE */}
 
       {!loading &&
-        filteredProducts.length > 0 && (
+        filteredProducts.length >
+          0 && (
           <div className="mt-6 hidden overflow-hidden rounded-3xl border border-zinc-200 bg-white md:block">
+
             <div className="overflow-x-auto">
+
               <table className="w-full min-w-[850px] text-right">
+
                 <thead className="bg-zinc-50">
                   <tr>
+
                     <th className="px-5 py-4 text-xs font-black">
                       المنتج
                     </th>
@@ -1411,15 +1763,19 @@ function AdminProducts() {
                     <th className="px-5 py-4 text-xs font-black">
                       الإجراء
                     </th>
+
                   </tr>
                 </thead>
 
                 <tbody>
+
                   {filteredProducts.map(
                     (product) => {
                       const firebaseCategory =
                         categories.find(
-                          (category) =>
+                          (
+                            category
+                          ) =>
                             category.id ===
                             product.category
                         );
@@ -1431,9 +1787,13 @@ function AdminProducts() {
                           }
                           className="border-t border-zinc-100 transition hover:bg-zinc-50"
                         >
+
                           <td className="px-5 py-4">
+
                             <div className="flex items-center gap-3">
+
                               <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
+
                                 {product.image ? (
                                   <img
                                     src={
@@ -1460,6 +1820,7 @@ function AdminProducts() {
                                     />
                                   </div>
                                 )}
+
                               </div>
 
                               <span className="max-w-xs text-sm font-black">
@@ -1467,13 +1828,17 @@ function AdminProducts() {
                                   product.name
                                 }
                               </span>
+
                             </div>
+
                           </td>
 
                           <td className="px-5 py-4 text-xs text-zinc-500">
-                            {firebaseCategory?.name ||
+                            {
+                              firebaseCategory?.name ||
                               product.categoryName ||
-                              "بدون قسم"}
+                              "بدون قسم"
+                            }
                           </td>
 
                           <td className="px-5 py-4 text-sm font-black">
@@ -1506,7 +1871,9 @@ function AdminProducts() {
                           </td>
 
                           <td className="px-5 py-4">
+
                             <div className="flex gap-2">
+
                               <button
                                 type="button"
                                 onClick={() =>
@@ -1541,14 +1908,19 @@ function AdminProducts() {
                                   }
                                 />
                               </button>
+
                             </div>
+
                           </td>
+
                         </tr>
                       );
                     }
                   )}
+
                 </tbody>
               </table>
+
             </div>
           </div>
         )}
@@ -1559,6 +1931,7 @@ function AdminProducts() {
         filteredProducts.length ===
           0 && (
           <div className="mt-6 rounded-3xl border border-dashed border-zinc-300 bg-white p-12 text-center">
+
             <Search
               size={35}
               className="mx-auto text-zinc-300"
@@ -1572,6 +1945,7 @@ function AdminProducts() {
 
             {!search && (
               <div className="mt-5 flex flex-col items-center justify-center gap-3 sm:flex-row">
+
                 <button
                   type="button"
                   onClick={
@@ -1608,19 +1982,25 @@ function AdminProducts() {
 
                   إضافة أول منتج
                 </button>
+
               </div>
             )}
           </div>
         )}
 
-      {/* ADD / EDIT MODAL */}
+      {/* =====================================================
+          ADD / EDIT MODAL
+      ====================================================== */}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+
           <div className="max-h-[92vh] w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
+
             {/* MODAL HEADER */}
 
             <div className="flex items-center justify-between border-b border-zinc-100 p-5">
+
               <div>
                 <h2 className="text-xl font-black text-zinc-950">
                   {editingProduct
@@ -1642,6 +2022,7 @@ function AdminProducts() {
               >
                 <X size={19} />
               </button>
+
             </div>
 
             {/* MODAL FORM */}
@@ -1652,6 +2033,7 @@ function AdminProducts() {
               }
               className="max-h-[calc(92vh-90px)] overflow-y-auto p-5"
             >
+
               {error && (
                 <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
                   {error}
@@ -1665,27 +2047,33 @@ function AdminProducts() {
               )}
 
               <div className="grid gap-4 sm:grid-cols-2">
+
                 {/* NAME */}
 
                 <div className="sm:col-span-2">
+
                   <label className="mb-2 block text-sm font-black">
                     اسم المنتج
                   </label>
 
                   <input
                     name="name"
-                    value={form.name}
+                    value={
+                      form.name
+                    }
                     onChange={
                       handleChange
                     }
                     placeholder="مثال: HIRAQL T-Shirt Black"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white"
                   />
+
                 </div>
 
                 {/* DESCRIPTION */}
 
                 <div className="sm:col-span-2">
+
                   <label className="mb-2 block text-sm font-black">
                     وصف المنتج
                   </label>
@@ -1702,11 +2090,13 @@ function AdminProducts() {
                     placeholder="اكتب وصف المنتج..."
                     className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white"
                   />
+
                 </div>
 
                 {/* PRICE */}
 
                 <div>
+
                   <label className="mb-2 block text-sm font-black">
                     السعر
                   </label>
@@ -1715,18 +2105,22 @@ function AdminProducts() {
                     name="price"
                     type="number"
                     min="0"
-                    value={form.price}
+                    value={
+                      form.price
+                    }
                     onChange={
                       handleChange
                     }
                     placeholder="500"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
+
                 </div>
 
                 {/* OLD PRICE */}
 
                 <div>
+
                   <label className="mb-2 block text-sm font-black">
                     السعر القديم
                   </label>
@@ -1744,11 +2138,13 @@ function AdminProducts() {
                     placeholder="650"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
+
                 </div>
 
                 {/* DISCOUNT */}
 
                 <div>
+
                   <label className="mb-2 block text-sm font-black">
                     الخصم %
                   </label>
@@ -1767,11 +2163,13 @@ function AdminProducts() {
                     placeholder="20"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
+
                 </div>
 
                 {/* STOCK */}
 
                 <div>
+
                   <label className="mb-2 block text-sm font-black">
                     المخزون
                   </label>
@@ -1780,18 +2178,22 @@ function AdminProducts() {
                     name="stock"
                     type="number"
                     min="0"
-                    value={form.stock}
+                    value={
+                      form.stock
+                    }
                     onChange={
                       handleChange
                     }
                     placeholder="10"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
                   />
+
                 </div>
 
                 {/* CATEGORY */}
 
                 <div className="sm:col-span-2">
+
                   <label className="mb-2 block text-sm font-black">
                     القسم
                   </label>
@@ -1810,6 +2212,7 @@ function AdminProducts() {
                     }
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
+
                     <option value="">
                       {categoriesLoading
                         ? "جاري تحميل الأقسام..."
@@ -1837,6 +2240,7 @@ function AdminProducts() {
                         </option>
                       )
                     )}
+
                   </select>
 
                   {form.category && (
@@ -1847,11 +2251,13 @@ function AdminProducts() {
                       }
                     </p>
                   )}
+
                 </div>
 
                 {/* BADGE */}
 
                 <div>
+
                   <label className="mb-2 block text-sm font-black">
                     شارة المنتج
                   </label>
@@ -1867,17 +2273,350 @@ function AdminProducts() {
                     placeholder="جديد / الأكثر مبيعًا"
                     className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none transition focus:border-black focus:bg-white"
                   />
+
                 </div>
 
-                {/* IMAGE */}
+                {/* =====================================================
+                    SIZES
+                ====================================================== */}
 
                 <div className="sm:col-span-2">
+
                   <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                    <div>
+                      <label className="block text-sm font-black">
+                        المقاسات
+                      </label>
+
+                      <p className="mt-1 text-[11px] text-zinc-400">
+                        اختار المقاسات المتاحة للمنتج.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+
+                      <button
+                        type="button"
+                        onClick={
+                          selectAllSizes
+                        }
+                        className="rounded-xl bg-zinc-100 px-3 py-2 text-[10px] font-black text-zinc-700 transition hover:bg-black hover:text-white"
+                      >
+                        اختيار الكل
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={
+                          clearSizes
+                        }
+                        className="rounded-xl bg-zinc-100 px-3 py-2 text-[10px] font-black text-zinc-500 transition hover:bg-zinc-200"
+                      >
+                        مسح
+                      </button>
+
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+
+                      {SIZE_OPTIONS.map(
+                        (size) => {
+                          const selected =
+                            form.sizes.includes(
+                              size
+                            );
+
+                          return (
+                            <button
+                              key={
+                                size
+                              }
+                              type="button"
+                              onClick={() =>
+                                toggleSize(
+                                  size
+                                )
+                              }
+                              className={`
+                                h-11
+                                rounded-xl
+                                border
+                                text-xs
+                                font-black
+                                transition-all
+                                duration-200
+                                ${
+                                  selected
+                                    ? "border-black bg-black text-[#39ff14] shadow-md"
+                                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400 hover:-translate-y-0.5"
+                                }
+                              `}
+                            >
+                              {size}
+                            </button>
+                          );
+                        }
+                      )}
+
+                    </div>
+
+                    <div className="mt-4 rounded-xl bg-white px-4 py-3">
+
+                      <p className="text-[10px] font-bold text-zinc-400">
+                        المقاسات المختارة
+                      </p>
+
+                      {form.sizes.length >
+                      0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+
+                          {form.sizes.map(
+                            (
+                              size
+                            ) => (
+                              <span
+                                key={
+                                  size
+                                }
+                                className="rounded-lg bg-black px-3 py-1.5 text-[10px] font-black text-[#39ff14]"
+                              >
+                                {size}
+                              </span>
+                            )
+                          )}
+
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs font-bold text-zinc-400">
+                          مفيش مقاسات مختارة.
+                        </p>
+                      )}
+
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* =====================================================
+                    COLORS
+                ====================================================== */}
+
+                <div className="sm:col-span-2">
+
+                  <div className="mb-2">
+
+                    <label className="block text-sm font-black">
+                      الألوان
+                    </label>
+
+                    <p className="mt-1 text-[11px] text-zinc-400">
+                      اختار لون أو أكتر، ولو اللون
+                      مش موجود اكتبه يدويًا.
+                    </p>
+
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+
+                      {COLOR_OPTIONS.map(
+                        (color) => {
+                          const selected =
+                            form.colors.includes(
+                              color.value
+                            );
+
+                          return (
+                            <button
+                              key={
+                                color.value
+                              }
+                              type="button"
+                              onClick={() =>
+                                toggleColor(
+                                  color.value
+                                )
+                              }
+                              className={`
+                                flex
+                                items-center
+                                gap-3
+                                rounded-xl
+                                border
+                                px-3
+                                py-2.5
+                                text-right
+                                text-xs
+                                font-black
+                                transition-all
+                                duration-200
+                                ${
+                                  selected
+                                    ? "border-black bg-black text-white shadow-md"
+                                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400 hover:-translate-y-0.5"
+                                }
+                              `}
+                            >
+
+                              <span
+                                className={`h-6 w-6 shrink-0 rounded-full border ${color.className}`}
+                              />
+
+                              <span className="flex-1">
+                                {
+                                  color.name
+                                }
+                              </span>
+
+                              {selected && (
+                                <span className="text-[#39ff14]">
+                                  ✓
+                                </span>
+                              )}
+
+                            </button>
+                          );
+                        }
+                      )}
+
+                    </div>
+
+                    {/* CUSTOM COLOR */}
+
+                    <div className="mt-4 border-t border-zinc-200 pt-4">
+
+                      <label className="mb-2 block text-xs font-black text-zinc-700">
+                        لون إضافي
+                      </label>
+
+                      <div className="flex gap-2">
+
+                        <input
+                          value={
+                            form.customColor
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setForm(
+                              (
+                                current
+                              ) => ({
+                                ...current,
+                                customColor:
+                                  event
+                                    .target
+                                    .value,
+                              })
+                            )
+                          }
+                          onKeyDown={(
+                            event
+                          ) => {
+                            if (
+                              event.key ===
+                              "Enter"
+                            ) {
+                              event.preventDefault();
+
+                              handleAddCustomColor();
+                            }
+                          }}
+                          placeholder="مثال: موف، بيج، نبيتي..."
+                          className="h-12 flex-1 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-bold outline-none transition focus:border-black"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={
+                            handleAddCustomColor
+                          }
+                          className="h-12 rounded-xl bg-black px-5 text-xs font-black text-white transition hover:bg-zinc-800"
+                        >
+                          إضافة
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                    {/* SELECTED COLORS */}
+
+                    <div className="mt-4 rounded-xl bg-white p-4">
+
+                      <p className="text-[10px] font-bold text-zinc-400">
+                        الألوان المختارة
+                      </p>
+
+                      {form.colors.length >
+                      0 ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+
+                          {form.colors.map(
+                            (
+                              color
+                            ) => (
+                              <span
+                                key={
+                                  color
+                                }
+                                className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-3 py-1.5 text-[10px] font-black text-zinc-700"
+                              >
+                                {
+                                  color
+                                }
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeColor(
+                                      color
+                                    )
+                                  }
+                                  className="text-zinc-400 transition hover:text-red-500"
+                                  aria-label={`حذف اللون ${color}`}
+                                >
+                                  <X
+                                    size={
+                                      12
+                                    }
+                                  />
+                                </button>
+                              </span>
+                            )
+                          )}
+
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs font-bold text-zinc-400">
+                          مفيش ألوان مختارة.
+                        </p>
+                      )}
+
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* =====================================================
+                    IMAGE
+                ====================================================== */}
+
+                <div className="sm:col-span-2">
+
+                  <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
                     <label className="block text-sm font-black">
                       صورة المنتج
                     </label>
 
                     <div className="flex flex-wrap gap-2">
+
                       <button
                         type="button"
                         onClick={
@@ -1905,15 +2644,18 @@ function AdminProducts() {
 
                         فتح Google Drive
                       </button>
+
                     </div>
                   </div>
 
                   <div className="rounded-2xl border border-[#39ff14]/30 bg-[#39ff14]/5 p-4">
+
                     <p className="text-sm font-black text-zinc-900">
                       📸 طرق إضافة الصورة
                     </p>
 
                     <div className="mt-3 space-y-3 text-xs font-bold leading-6 text-zinc-600">
+
                       <div>
                         <p className="font-black text-zinc-900">
                           الطريقة الأولى — ImgBB
@@ -1943,22 +2685,21 @@ function AdminProducts() {
                         </p>
 
                         <p>
-                          خلي الصورة في Google Drive واضبط المشاركة على:
+                          خلي الصورة في Google Drive
+                          واضبط المشاركة على:
                         </p>
 
                         <p className="mt-1 font-black text-green-700">
-                          Anyone with the link →
-                          Viewer
+                          Anyone with the link → Viewer
                         </p>
 
-                        <p className="mt-1">
-                          وبعدها الصق لينك المشاركة هنا، والكود هيحوله تلقائيًا لرابط عرض مباشر.
-                        </p>
                       </div>
+
                     </div>
                   </div>
 
                   <div className="mt-3">
+
                     <input
                       name="image"
                       value={
@@ -1973,10 +2714,11 @@ function AdminProducts() {
 
                     {form.image && (
                       <div className="mt-2">
+
                         {imageType ===
                           "drive" && (
                           <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-xs font-bold leading-5 text-green-700">
-                            ✅ Google Drive — الكود هيحوّل الرابط تلقائيًا لرابط الصورة.
+                            ✅ Google Drive — الكود هيحوّل الرابط تلقائيًا.
                           </div>
                         )}
 
@@ -1990,7 +2732,7 @@ function AdminProducts() {
                         {imageType ===
                           "imgbb-page" && (
                           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold leading-5 text-red-700">
-                            ❌ ده رابط صفحة ImgBB وليس رابط الصورة. استخدم Direct Link الذي يبدأ بـ https://i.ibb.co/
+                            ❌ ده رابط صفحة ImgBB وليس رابط الصورة.
                           </div>
                         )}
 
@@ -2000,15 +2742,19 @@ function AdminProducts() {
                             🔗 تم إدخال رابط — هنحاول عرضه مباشرة.
                           </div>
                         )}
+
                       </div>
                     )}
+
                   </div>
 
                   {form.image &&
                     imageType !==
                       "imgbb-page" && (
                       <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100">
+
                         <div className="flex h-8 items-center justify-between border-b border-zinc-200 bg-white px-3">
+
                           <span className="text-[10px] font-black text-zinc-400">
                             معاينة الصورة
                           </span>
@@ -2016,9 +2762,11 @@ function AdminProducts() {
                           <span className="text-[10px] font-bold text-green-600">
                             مباشر من الرابط
                           </span>
+
                         </div>
 
                         <div className="relative flex h-56 items-center justify-center">
+
                           <img
                             src={normalizeImageUrl(
                               form.image
@@ -2032,7 +2780,9 @@ function AdminProducts() {
                                 "none";
 
                               const parent =
-                                event.currentTarget.parentElement;
+                                event
+                                  .currentTarget
+                                  .parentElement;
 
                               if (
                                 parent &&
@@ -2062,69 +2812,27 @@ function AdminProducts() {
                               }
                             }}
                           />
+
                         </div>
                       </div>
                     )}
+
                 </div>
 
-                {/* SIZES */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-black">
-                    المقاسات
-                  </label>
-
-                  <input
-                    name="sizes"
-                    value={
-                      form.sizes
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="S, M, L, XL"
-                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
-                  />
-
-                  <p className="mt-1 text-[11px] text-zinc-400">
-                    افصل بينهم بفاصلة.
-                  </p>
-                </div>
-
-                {/* COLORS */}
-
-                <div>
-                  <label className="mb-2 block text-sm font-black">
-                    الألوان
-                  </label>
-
-                  <input
-                    name="colors"
-                    value={
-                      form.colors
-                    }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="أسود, أبيض"
-                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-bold outline-none focus:border-black focus:bg-white"
-                  />
-
-                  <p className="mt-1 text-[11px] text-zinc-400">
-                    افصل بينهم بفاصلة.
-                  </p>
-                </div>
               </div>
 
               {/* BUTTONS */}
 
               <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
+
                 <button
                   type="button"
                   onClick={
                     handleCloseModal
                   }
-                  disabled={saving}
+                  disabled={
+                    saving
+                  }
                   className="flex-1 rounded-2xl border border-zinc-200 px-5 py-3.5 text-sm font-black text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-50"
                 >
                   إلغاء
@@ -2140,6 +2848,7 @@ function AdminProducts() {
                   }
                   className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-black px-5 py-3.5 text-sm font-black text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
+
                   {saving ? (
                     <>
                       <LoaderCircle
@@ -2158,18 +2867,26 @@ function AdminProducts() {
                         : "إضافة المنتج"}
                     </>
                   )}
+
                 </button>
+
               </div>
+
             </form>
+
           </div>
         </div>
       )}
 
-      {/* DELETE MODAL */}
+      {/* =====================================================
+          DELETE MODAL
+      ====================================================== */}
 
       {deleteProduct && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-500">
               <Trash2 size={25} />
             </div>
@@ -2193,6 +2910,7 @@ function AdminProducts() {
             </p>
 
             <div className="mt-6 flex gap-3">
+
               <button
                 type="button"
                 onClick={() =>
@@ -2214,7 +2932,9 @@ function AdminProducts() {
               >
                 حذف نهائي
               </button>
+
             </div>
+
           </div>
         </div>
       )}

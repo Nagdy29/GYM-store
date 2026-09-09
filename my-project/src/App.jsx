@@ -1,4 +1,7 @@
-import { Routes, Route } from "react-router-dom";
+import {
+  Routes,
+  Route,
+} from "react-router-dom";
 
 import MainLayout from "./layouts/MainLayout";
 import ScrollToTop from "./components/ScrollToTop";
@@ -26,6 +29,7 @@ import AdminCategories from "./admin/AdminCategories";
 import AdminOrders from "./admin/AdminOrders";
 import AdminReviews from "./admin/AdminReviews";
 import AdminSecretChallenge from "./admin/AdminSecretChallenge";
+import AdminSettings from "./admin/AdminSettings";
 
 import SecretChallenge from "./pages/SecretChallenge";
 
@@ -33,14 +37,21 @@ function App() {
   return (
     <>
       <ScrollToTop />
+
       <ScrollToTopButton />
 
       <Routes>
-        {/* =========================
-            Store
-        ========================== */}
+
+        {/* ==================================================
+            STORE
+        ================================================== */}
+
         <Route element={<MainLayout />}>
-          <Route path="/" element={<Home />} />
+
+          <Route
+            path="/"
+            element={<Home />}
+          />
 
           <Route
             path="/products"
@@ -72,15 +83,10 @@ function App() {
             element={<OrderSuccess />}
           />
 
-          {/* المفتاح الخفي للعميل */}
           <Route
             path="/secret"
             element={<SecretChallenge />}
           />
-
-          {/* =========================
-              About & Contact
-          ========================== */}
 
           <Route
             path="/about"
@@ -93,69 +99,105 @@ function App() {
           />
         </Route>
 
-        {/* =========================
-            Admin Login
-        ========================== */}
+        {/* ==================================================
+            ADMIN LOGIN
+        ================================================== */}
 
         <Route
           path="/admin/login"
           element={<AdminLogin />}
         />
 
-        {/* =========================
-            Admin
-        ========================== */}
+        {/* ==================================================
+            PROTECTED ADMIN
+        ================================================== */}
 
-        <Route element={<AdminProtectedRoute />}>
-          <Route element={<AdminLayout />}>
+        <Route
+          element={
+            <AdminProtectedRoute />
+          }
+        >
+          <Route
+            element={
+              <AdminLayout />
+            }
+          >
 
-            {/* Dashboard */}
+            {/* DASHBOARD */}
+
             <Route
               path="/admin"
-              element={<AdminDashboard />}
+              element={
+                <AdminDashboard />
+              }
             />
 
-            {/* Products */}
+            {/* PRODUCTS */}
+
             <Route
               path="/admin/products"
-              element={<AdminProducts />}
+              element={
+                <AdminProducts />
+              }
             />
 
-            {/* Categories */}
+            {/* CATEGORIES */}
+
             <Route
               path="/admin/categories"
-              element={<AdminCategories />}
+              element={
+                <AdminCategories />
+              }
             />
 
-            {/* Orders */}
+            {/* ORDERS */}
+
             <Route
               path="/admin/orders"
-              element={<AdminOrders />}
+              element={
+                <AdminOrders />
+              }
             />
 
-            {/* Reviews */}
+            {/* REVIEWS */}
+
             <Route
               path="/admin/reviews"
-              element={<AdminReviews />}
+              element={
+                <AdminReviews />
+              }
             />
 
-            {/* Secret Challenge */}
+            {/* SECRET CHALLENGE */}
+
             <Route
               path="/admin/secret"
-              element={<AdminSecretChallenge />}
+              element={
+                <AdminSecretChallenge />
+              }
+            />
+
+            {/* SETTINGS */}
+
+            <Route
+              path="/admin/settings"
+              element={
+                <AdminSettings />
+              }
             />
 
           </Route>
         </Route>
 
-        {/* =========================
+        {/* ==================================================
             404
-        ========================== */}
+        ================================================== */}
 
         <Route
           path="*"
           element={<NotFound />}
         />
+
       </Routes>
     </>
   );
