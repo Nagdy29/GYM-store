@@ -7,13 +7,18 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
 
 import { db } from "./config";
 
-const ORDERS_COLLECTION = "orders";
+const ORDERS_COLLECTION =
+  "orders";
+
+const CLAIMS_COLLECTION =
+  "secretChallengeClaims";
 
 export const ORDER_STATUSES = [
   {
@@ -42,22 +47,29 @@ export const ORDER_STATUSES = [
   },
 ];
 
-export function getOrderStatusLabel(status) {
-  const found = ORDER_STATUSES.find(
-    (item) => item.value === status
-  );
+export function getOrderStatusLabel(
+  status
+) {
+  const found =
+    ORDER_STATUSES.find(
+      (item) =>
+        item.value === status
+    );
 
-  return found?.label || "قيد المراجعة";
+  return (
+    found?.label ||
+    "قيد المراجعة"
+  );
 }
 
 /*
 =========================================================
-ADD ORDER
+CLEAN ORDER DATA
 =========================================================
 */
 
-export async function addOrderToFirebase(order) {
-  const orderData = {
+function buildOrderData(order) {
+  return {
     orderNumber:
       order.orderNumber ||
       order.id ||
@@ -65,75 +77,192 @@ export async function addOrderToFirebase(order) {
 
     customer: {
       name:
-        order.customer?.name?.trim() || "",
+        order.customer?.name
+          ?.trim() || "",
 
       phone:
-        order.customer?.phone?.trim() || "",
+        order.customer?.phone
+          ?.trim() || "",
 
       governorate:
-        order.customer?.governorate?.trim() || "",
+        order.customer?.governorate
+          ?.trim() || "",
 
       address:
-        order.customer?.address?.trim() || "",
+        order.customer?.address
+          ?.trim() || "",
 
       notes:
-        order.customer?.notes?.trim() || "",
+        order.customer?.notes
+          ?.trim() || "",
     },
+
+    /*
+     * المحافظة وسعر الشحن وقت الطلب.
+     */
+
+    shippingGovernorate:
+      order.shippingGovernorate ||
+      order.customer?.governorate ||
+      "",
 
     payment:
       order.payment || "cod",
 
-    items: Array.isArray(order.items)
-      ? order.items.map((item) => ({
-          id: item.id || "",
-          name: item.name || "",
-          price: Number(item.price) || 0,
-          image: item.image || "",
-          size: item.size || null,
-          color: item.color || null,
-          quantity:
-            Number(item.quantity) || 1,
-        }))
-      : [],
+    items:
+      Array.isArray(order.items)
+        ? order.items.map(
+            (item) => ({
+              id:
+                item.id || "",
+
+              name:
+                item.name || "",
+
+              price:
+                Number(
+                  item.price
+                ) || 0,
+
+              image:
+                item.image || "",
+
+              size:
+                item.size ||
+                null,
+
+              color:
+                item.color ||
+                null,
+
+              quantity:
+                Number(
+                  item.quantity
+                ) || 1,
+            })
+          )
+        : [],
 
     subtotal:
-      Number(order.subtotal) || 0,
+      Number(
+        order.subtotal
+      ) || 0,
 
     shipping:
-      Number(order.shipping) || 0,
-
-    discount:
-      Number(order.discount) || 0,
-
-    originalTotal:
-      Number(order.originalTotal) || 0,
-
-    total:
-      Number(order.total) || 0,
-
-    secretReward:
-      order.secretReward || null,
-
-    status:
-      order.status || "pending",
+      Number(
+        order.shipping
+      ) || 0,
 
     /*
-     * ==================================================
-     * ADMIN NOTIFICATION
-     * ==================================================
-     *
-     * الطلب الجديد يبدأ Unread.
-     *
-     * مجرد ظهور الإشعار أو اختفائه من الشاشة
-     * لا يحذف الطلب.
-     *
-     * لما الأدمن يشوفه، هنغير:
-     * adminNotificationSeen = true
+     * سعر الشحن قبل المكافأة.
+     * مفيد جدًا لو المكافأة شحن مجاني.
      */
 
-    adminNotificationSeen: false,
+    shippingBeforeReward:
+      Number(
+        order.shippingBeforeReward
+      ) || 0,
 
-    adminNotificationSeenAt: null,
+    /*
+     * الخصم الفعلي بالجنيه.
+     */
+
+    discount:
+      Number(
+        order.discount
+      ) || 0,
+
+    /*
+     * الإجمالي قبل الخصم/المكافأة.
+     */
+
+    originalTotal:
+      Number(
+        order.originalTotal
+      ) || 0,
+
+    /*
+     * الإجمالي النهائي المدفوع.
+     */
+
+    total:
+      Number(
+        order.total
+      ) || 0,
+
+    /*
+     * Snapshot كامل للمكافأة وقت الطلب.
+     *
+     * مهم:
+     * إحنا بنحفظ بيانات المكافأة نفسها
+     * داخل Order عشان لو الأدمن عدل التحدي
+     * بعد كده، الطلب القديم يفضل محتفظ
+     * بالمعلومة اللي حصلت وقت الشراء.
+     */
+
+    secretReward:
+      order.secretReward
+        ? {
+            claimId:
+              order.secretReward
+                .claimId || "",
+
+            challengeId:
+              order.secretReward
+                .challengeId || "",
+
+            challengeTitle:
+              order.secretReward
+                .challengeTitle || "",
+
+            couponCode:
+              order.secretReward
+                .couponCode || "",
+
+            rewardType:
+              order.secretReward
+                .rewardType || "",
+
+            rewardValue:
+              order.secretReward
+                .rewardValue ??
+              null,
+
+            rewardProductId:
+              order.secretReward
+                .rewardProductId || "",
+
+            rewardProductName:
+              order.secretReward
+                .rewardProductName || "",
+
+            discount:
+              Number(
+                order.secretReward
+                  .discount
+              ) || 0,
+
+            freeShipping:
+              Boolean(
+                order.secretReward
+                  .freeShipping
+              ),
+
+            used:
+              order.secretReward
+                .used !== false,
+          }
+        : null,
+
+    status:
+      order.status ||
+      "pending",
+
+    adminNotificationSeen:
+      false,
+
+    adminNotificationSeenAt:
+      null,
 
     createdAt:
       serverTimestamp(),
@@ -141,6 +270,29 @@ export async function addOrderToFirebase(order) {
     updatedAt:
       serverTimestamp(),
   };
+}
+
+/*
+=========================================================
+ADD ORDER
+=========================================================
+
+لو الطلب فيه secretReward + claimId:
+- بنقرأ الـ Claim داخل Transaction.
+- لازم يكون pending.
+- بننشئ الطلب.
+- بنغير الـ Claim إلى used.
+- الاتنين يتموا مع بعض.
+
+وبالتالي مينفعش نفس المكافأة تدخل في طلبين.
+=========================================================
+*/
+
+export async function addOrderToFirebase(
+  order
+) {
+  const orderData =
+    buildOrderData(order);
 
   const ordersRef =
     collection(
@@ -148,14 +300,283 @@ export async function addOrderToFirebase(order) {
       ORDERS_COLLECTION
     );
 
-  const document =
-    await addDoc(
-      ordersRef,
-      orderData
+  const claimId =
+    order.secretReward
+      ?.claimId || "";
+
+  /*
+   * ======================================================
+   * ORDER WITHOUT SECRET REWARD
+   * ======================================================
+   */
+
+  if (!claimId) {
+    const document =
+      await addDoc(
+        ordersRef,
+        orderData
+      );
+
+    return {
+      id: document.id,
+      ...orderData,
+    };
+  }
+
+  /*
+   * ======================================================
+   * ORDER WITH SECRET REWARD
+   * ======================================================
+   */
+
+  const claimRef =
+    doc(
+      db,
+      CLAIMS_COLLECTION,
+      claimId
     );
 
+  const orderRef =
+    doc(ordersRef);
+
+  await runTransaction(
+    db,
+    async (transaction) => {
+      const claimSnapshot =
+        await transaction.get(
+          claimRef
+        );
+
+      if (
+        !claimSnapshot.exists()
+      ) {
+        const error =
+          new Error(
+            "المكافأة غير موجودة."
+          );
+
+        error.code =
+          "SECRET_CLAIM_NOT_FOUND";
+
+        throw error;
+      }
+
+      const claim =
+        claimSnapshot.data();
+
+      /*
+       * المكافأة مستخدمة بالفعل.
+       */
+
+      if (
+        claim.status ===
+        "used"
+      ) {
+        const error =
+          new Error(
+            "المكافأة مستخدمة بالفعل في طلب سابق."
+          );
+
+        error.code =
+          "SECRET_CLAIM_ALREADY_USED";
+
+        throw error;
+      }
+
+      /*
+       * لازم تكون Pending.
+       */
+
+      if (
+        claim.status !==
+        "pending"
+      ) {
+        const error =
+          new Error(
+            "المكافأة غير متاحة للاستخدام حاليًا."
+          );
+
+        error.code =
+          "SECRET_CLAIM_NOT_PENDING";
+
+        throw error;
+      }
+
+      /*
+       * تأكيد إن الكود الموجود في الطلب
+       * هو نفس الكود الموجود في Firebase.
+       */
+
+      if (
+        claim.couponCode &&
+        order.secretReward
+          ?.couponCode &&
+        String(
+          claim.couponCode
+        ).toUpperCase() !==
+          String(
+            order.secretReward
+              .couponCode
+          ).toUpperCase()
+      ) {
+        const error =
+          new Error(
+            "كود المكافأة غير مطابق."
+          );
+
+        error.code =
+          "SECRET_CLAIM_CODE_MISMATCH";
+
+        throw error;
+      }
+
+      /*
+       * نثبت المكافأة داخل الطلب
+       * قبل الحفظ.
+       */
+
+      const finalSecretReward =
+        {
+          ...(orderData.secretReward ||
+            {}),
+
+          claimId,
+
+          challengeId:
+            claim.challengeId ||
+            orderData
+              .secretReward
+              ?.challengeId ||
+            "",
+
+          challengeTitle:
+            claim.challengeTitle ||
+            orderData
+              .secretReward
+              ?.challengeTitle ||
+            "",
+
+          couponCode:
+            claim.couponCode ||
+            orderData
+              .secretReward
+              ?.couponCode ||
+            "",
+
+          rewardType:
+            claim.reward?.type ||
+            orderData
+              .secretReward
+              ?.rewardType ||
+            "",
+
+          rewardValue:
+            claim.reward?.value ??
+            orderData
+              .secretReward
+              ?.rewardValue ??
+            null,
+
+          rewardProductId:
+            claim.reward
+              ?.productId ||
+            orderData
+              .secretReward
+              ?.rewardProductId ||
+            "",
+
+          rewardProductName:
+            claim.reward
+              ?.productName ||
+            orderData
+              .secretReward
+              ?.rewardProductName ||
+            "",
+
+          discount:
+            Number(
+              orderData
+                .secretReward
+                ?.discount
+            ) || 0,
+
+          freeShipping:
+            Boolean(
+              orderData
+                .secretReward
+                ?.freeShipping
+            ),
+
+          used: true,
+        };
+
+      /*
+       * نعمل نسخة نهائية من الطلب
+       * بالمكافأة المؤكدة من Firebase.
+       */
+
+      const finalOrderData = {
+        ...orderData,
+
+        secretReward:
+          finalSecretReward,
+
+        discount:
+          Number(
+            finalSecretReward.discount
+          ) || 0,
+      };
+
+      /*
+       * أولًا ننشئ الطلب.
+       */
+
+      transaction.set(
+        orderRef,
+        finalOrderData
+      );
+
+      /*
+       * ثم نقفل الـ Claim.
+       */
+
+      transaction.update(
+        claimRef,
+        {
+          status: "used",
+
+          orderId:
+            orderRef.id,
+
+          usedAt:
+            serverTimestamp(),
+
+          updatedAt:
+            serverTimestamp(),
+        }
+      );
+    }
+  );
+
+  /*
+   * إزالة نسخة المكافأة المحلية.
+   */
+
+  try {
+    if (
+      order.secretReward
+        ?.challengeId
+    ) {
+      localStorage.removeItem(
+        `hiraql_secret_claim_${order.secretReward.challengeId}`
+      );
+    }
+  } catch {
+    // تجاهل
+  }
+
   return {
-    id: document.id,
+    id: orderRef.id,
     ...orderData,
   };
 }
@@ -216,10 +637,12 @@ export async function getOrdersFromFirebase() {
     return orders.sort(
       (a, b) => {
         const aTime =
-          a.createdAt?.seconds || 0;
+          a.createdAt?.seconds ||
+          0;
 
         const bTime =
-          b.createdAt?.seconds || 0;
+          b.createdAt?.seconds ||
+          0;
 
         return (
           bTime - aTime
@@ -323,11 +746,6 @@ export async function markOrderNotificationAsSeen(
   await updateDoc(
     orderRef,
     {
-      /*
-       * الطلب يفضل موجود.
-       * إحنا بنغير حالة الإشعار فقط.
-       */
-
       adminNotificationSeen:
         true,
 

@@ -26,10 +26,17 @@ export function CartProvider({ children }) {
   const [cartItems, setCartItems] = useState(getInitialCart);
 
   useEffect(() => {
-    localStorage.setItem("zenger-cart", JSON.stringify(cartItems));
+    localStorage.setItem(
+      "zenger-cart",
+      JSON.stringify(cartItems)
+    );
   }, [cartItems]);
 
-  const addToCart = (product, quantity = 1, options = {}) => {
+  const addToCart = (
+    product,
+    quantity = 1,
+    options = {}
+  ) => {
     setCartItems((currentItems) => {
       const existingItem = currentItems.find(
         (item) =>
@@ -45,7 +52,8 @@ export function CartProvider({ children }) {
           item.color === options.color
             ? {
                 ...item,
-                quantity: item.quantity + quantity,
+                quantity:
+                  item.quantity + quantity,
               }
             : item
         );
@@ -66,7 +74,11 @@ export function CartProvider({ children }) {
     });
   };
 
-  const removeFromCart = (id, size = null, color = null) => {
+  const removeFromCart = (
+    id,
+    size = null,
+    color = null
+  ) => {
     setCartItems((currentItems) =>
       currentItems.filter(
         (item) =>
@@ -86,7 +98,12 @@ export function CartProvider({ children }) {
     color = null
   ) => {
     if (quantity <= 0) {
-      removeFromCart(id, size, color);
+      removeFromCart(
+        id,
+        size,
+        color
+      );
+
       return;
     }
 
@@ -110,43 +127,67 @@ export function CartProvider({ children }) {
 
   const cartCount = useMemo(() => {
     return cartItems.reduce(
-      (total, item) => total + item.quantity,
+      (total, item) =>
+        total +
+        (Number(item.quantity) || 0),
       0
     );
   }, [cartItems]);
 
   const subtotal = useMemo(() => {
     return cartItems.reduce(
-      (total, item) => total + item.price * item.quantity,
+      (total, item) =>
+        total +
+        (Number(item.price) || 0) *
+          (Number(item.quantity) || 0),
       0
     );
   }, [cartItems]);
 
-  const shipping = subtotal === 0 ? 0 : subtotal >= 1500 ? 0 : 60;
+  /*
+   * الشحن الأساسي القديم.
+   *
+   * Checkout بيستخدم أسعار الشحن
+   * الموجودة في Firebase حسب المحافظة.
+   */
 
-  const total = subtotal + shipping;
+  const shipping =
+    subtotal === 0
+      ? 0
+      : subtotal >= 1500
+      ? 0
+      : 60;
+
+  const total =
+    subtotal + shipping;
 
   const value = {
     cartItems,
+
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
+
     cartCount,
+
     subtotal,
     shipping,
     total,
   };
 
   return (
-    <CartContext.Provider value={value}>
+    <CartContext.Provider
+      value={value}
+    >
       {children}
     </CartContext.Provider>
   );
 }
 
 export function useCart() {
-  const context = useContext(CartContext);
+  const context =
+    useContext(CartContext);
 
   if (!context) {
     throw new Error(

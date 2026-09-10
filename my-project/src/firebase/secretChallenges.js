@@ -20,23 +20,19 @@ COLLECTIONS
 ====================================================
 */
 
-const COLLECTION_NAME =
-  "secretChallenges";
+const COLLECTION_NAME = "secretChallenges";
 
-const CLAIMS_COLLECTION =
-  "secretChallengeClaims";
+const CLAIMS_COLLECTION = "secretChallengeClaims";
 
-const challengesRef =
-  collection(
-    db,
-    COLLECTION_NAME
-  );
+const challengesRef = collection(
+  db,
+  COLLECTION_NAME
+);
 
-const claimsRef =
-  collection(
-    db,
-    CLAIMS_COLLECTION
-  );
+const claimsRef = collection(
+  db,
+  CLAIMS_COLLECTION
+);
 
 /*
 ====================================================
@@ -44,15 +40,67 @@ TEXT NORMALIZATION
 ====================================================
 */
 
-function normalizeAnswer(
-  value
-) {
-  return String(
-    value || ""
-  )
+function normalizeAnswer(value) {
+  return String(value ?? "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+}
+
+/*
+====================================================
+BOOLEAN NORMALIZATION
+====================================================
+*/
+
+function normalizeBoolean(value, defaultValue = false) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (
+    value === "true" ||
+    value === 1 ||
+    value === "1" ||
+    value === "yes"
+  ) {
+    return true;
+  }
+
+  if (
+    value === "false" ||
+    value === 0 ||
+    value === "0" ||
+    value === "no"
+  ) {
+    return false;
+  }
+
+  return defaultValue;
+}
+
+/*
+====================================================
+YEAR NORMALIZATION
+====================================================
+*/
+
+function normalizeYear(value) {
+  if (
+    value === "" ||
+    value === null ||
+    value === undefined
+  ) {
+    return "";
+  }
+
+  const year = Number(value);
+
+  if (!Number.isInteger(year)) {
+    return "";
+  }
+
+  return year;
 }
 
 /*
@@ -61,90 +109,166 @@ CHALLENGE CLEANER
 ====================================================
 */
 
-function cleanChallengeData(
-  data = {}
-) {
-  return {
-    title: String(
-      data.title || ""
-    ).trim(),
+function cleanChallengeData(data = {}) {
+  const question = String(
+    data.question ?? ""
+  ).trim();
 
-    description: String(
-      data.description || ""
-    ).trim(),
+  const title = String(
+    data.title ?? ""
+  ).trim();
 
-    question: String(
-      data.question || ""
-    ).trim(),
+  const description = String(
+    data.description ?? ""
+  ).trim();
 
-    answer: normalizeAnswer(
-      data.answer
-    ),
+  const answer = normalizeAnswer(
+    data.answer
+  );
 
-    hints: Array.isArray(
-      data.hints
-    )
-      ? data.hints
-          .map(
-            (
-              hint,
-              index
-            ) => ({
+  const year = normalizeYear(
+    data.year
+  );
+
+  const hints = Array.isArray(
+    data.hints
+  )
+    ? data.hints
+        .map(
+          (hint, index) => {
+            /*
+             * دعم شكلين:
+             *
+             * { order: 1, text: "..." }
+             *
+             * أو
+             *
+             * "النص"
+             */
+
+            if (
+              typeof hint ===
+              "string"
+            ) {
+              return {
+                order: index + 1,
+                text: hint.trim(),
+              };
+            }
+
+            return {
               order: Number(
                 hint?.order ||
                   index + 1
               ),
 
               text: String(
-                hint?.text ||
-                  ""
+                hint?.text ?? ""
               ).trim(),
-            })
-          )
-          .filter(
-            (hint) =>
-              hint.text
-          )
-      : [],
+            };
+          }
+        )
+        .filter(
+          (hint) =>
+            hint.text
+        )
+    : [];
+
+  const rewardType =
+    data.reward?.type ||
+    "percentage";
+
+  const rewardValue =
+    data.reward?.value ??
+    "";
+
+  const productId = String(
+    data.reward?.productId ??
+      ""
+  ).trim();
+
+  const productName = String(
+    data.reward?.productName ??
+      ""
+  ).trim();
+
+  const active =
+    normalizeBoolean(
+      data.active,
+      false
+    );
+
+  const startAt = String(
+    data.startAt ?? ""
+  ).trim();
+
+  const endAt = String(
+    data.endAt ?? ""
+  ).trim();
+
+  return {
+    /*
+     * BASIC
+     */
+
+    title,
+
+    description,
+
+    /*
+     * YEAR
+     */
+
+    year,
+
+    /*
+     * MANUAL QUESTION
+     *
+     * أهم جزء:
+     * السؤال بيتحفظ هنا بشكل صريح.
+     */
+
+    question,
+
+    /*
+     * ANSWER
+     */
+
+    answer,
+
+    /*
+     * HINTS
+     */
+
+    hints,
+
+    /*
+     * REWARD
+     */
 
     reward: {
-      type:
-        data.reward?.type ||
-        "percentage",
+      type: rewardType,
 
-      value:
-        data.reward?.value ??
-        "",
+      value: rewardValue,
 
-      productId:
-        data.reward?.productId ||
-        "",
+      productId,
 
-      productName:
-        data.reward
-          ?.productName ||
-        "",
+      productName,
     },
 
     /*
-     * مهم:
-     * rewardRequiresOrder = true
-     * يعني المكافأة مخصصة للطلب
-     * وليس مكافأة منفصلة خارج Order.
+     * STATUS
      */
 
-    rewardRequiresOrder:
-      data.rewardRequiresOrder !==
-      false,
+    active,
 
-    active:
-      data.active === true,
+    /*
+     * DATES
+     */
 
-    startAt:
-      data.startAt || "",
+    startAt,
 
-    endAt:
-      data.endAt || "",
+    endAt,
   };
 }
 
@@ -156,11 +280,40 @@ SERIALIZE
 
 function serializeChallenge(
   id,
-  data
+  data = {}
 ) {
   return {
     id,
+
     ...data,
+
+    /*
+     * ضمان وجود السؤال حتى لو الداتا القديمة
+     * ناقصها الحقل.
+     */
+
+    question: String(
+      data.question ?? ""
+    ).trim(),
+
+    /*
+     * ضمان السنة لو موجودة.
+     */
+
+    year:
+      data.year !==
+        undefined &&
+      data.year !== null &&
+      data.year !== ""
+        ? Number(data.year)
+        : "",
+
+    /*
+     * ضمان إن active boolean.
+     */
+
+    active:
+      data.active === true,
   };
 }
 
@@ -195,11 +348,6 @@ export async function getSecretChallenges() {
       "Secret challenges ordered query failed:",
       error
     );
-
-    /*
-     * fallback لو بعض البيانات القديمة
-     * مفيهاش createdAt.
-     */
 
     const snapshot =
       await getDocs(
@@ -239,11 +387,12 @@ export async function getActiveSecretChallenge() {
 
   const challenges =
     snapshot.docs
-      .map((item) =>
-        serializeChallenge(
-          item.id,
-          item.data()
-        )
+      .map(
+        (item) =>
+          serializeChallenge(
+            item.id,
+            item.data()
+          )
       )
       .filter(
         (challenge) => {
@@ -355,6 +504,23 @@ export async function addSecretChallenge(
       data
     );
 
+  /*
+   * حماية إضافية:
+   * مينفعش ننشئ تحدي بدون سؤال.
+   */
+
+  if (!challenge.question) {
+    throw new Error(
+      "السؤال اليدوي غير موجود."
+    );
+  }
+
+  if (!challenge.answer) {
+    throw new Error(
+      "الإجابة الصحيحة غير موجودة."
+    );
+  }
+
   const docRef =
     await addDoc(
       challengesRef,
@@ -371,6 +537,7 @@ export async function addSecretChallenge(
 
   return {
     id: docRef.id,
+
     ...challenge,
   };
 }
@@ -396,6 +563,23 @@ export async function updateSecretChallenge(
       data
     );
 
+  /*
+   * حماية إضافية:
+   * مينفعش التعديل يمسح السؤال بالغلط.
+   */
+
+  if (!challenge.question) {
+    throw new Error(
+      "السؤال اليدوي غير موجود."
+    );
+  }
+
+  if (!challenge.answer) {
+    throw new Error(
+      "الإجابة الصحيحة غير موجودة."
+    );
+  }
+
   const challengeRef =
     doc(
       db,
@@ -415,6 +599,7 @@ export async function updateSecretChallenge(
 
   return {
     id,
+
     ...challenge,
   };
 }
@@ -447,10 +632,6 @@ export async function deleteSecretChallenge(
 ====================================================
 DEVICE ID
 ====================================================
-
-ده معرف عشوائي بيتخزن في الجهاز.
-مش بنستخدم بصمة جهاز أو بيانات شخصية.
-====================================================
 */
 
 const DEVICE_STORAGE_KEY =
@@ -477,11 +658,6 @@ export function getSecretDeviceId() {
 
     return deviceId;
   } catch {
-    /*
-     * fallback للمتصفحات اللي
-     * فيها مشكلة مع crypto/localStorage.
-     */
-
     return `device_${Date.now()}_${Math.random()
       .toString(36)
       .slice(2)}`;
@@ -517,8 +693,7 @@ export async function getSecretChallengeClaim(
     getSecretDeviceId();
 
   /*
-   * الأول نراجع localStorage
-   * عشان الاستجابة تكون سريعة.
+   * LOCAL FIRST
    */
 
   try {
@@ -535,11 +710,11 @@ export async function getSecretChallengeClaim(
       );
     }
   } catch {
-    // تجاهل localStorage error
+    // تجاهل
   }
 
   /*
-   * بعد كده نراجع Firebase.
+   * FIREBASE
    */
 
   try {
@@ -571,6 +746,7 @@ export async function getSecretChallengeClaim(
 
     const claim = {
       id: item.id,
+
       ...item.data(),
     };
 
@@ -602,9 +778,6 @@ export async function getSecretChallengeClaim(
 ====================================================
 CREATE CLAIM
 ====================================================
-
-تتعمل مرة واحدة فقط للجهاز.
-====================================================
 */
 
 export async function createSecretChallengeClaim(
@@ -630,11 +803,6 @@ export async function createSecretChallengeClaim(
       challenge.answer
     );
 
-  /*
-   * أول حاجة:
-   * نتأكد إن الإجابة صحيحة.
-   */
-
   if (
     !normalizedAnswer ||
     normalizedAnswer !==
@@ -646,11 +814,6 @@ export async function createSecretChallengeClaim(
     };
   }
 
-  /*
-   * ثاني حاجة:
-   * نتأكد إن الجهاز أخد مكافأة قبل كده.
-   */
-
   const existingClaim =
     await getSecretChallengeClaim(
       challenge.id
@@ -660,16 +823,11 @@ export async function createSecretChallengeClaim(
     return {
       success: false,
       reason: "already-claimed",
-      claim: existingClaim,
+
+      claim:
+        existingClaim,
     };
   }
-
-  /*
-   * كود الخصم.
-   *
-   * ده مش خصم مكتمل لوحده.
-   * بيبقى Pending لحد ما يدخل في Order.
-   */
 
   const randomPart =
     Math.random()
@@ -691,25 +849,19 @@ export async function createSecretChallengeClaim(
       challenge.id,
 
     challengeTitle:
-      challenge.title ||
-      "",
+      challenge.title || "",
 
     deviceId,
 
     couponCode,
 
     reward:
-      challenge.reward ||
-      {
+      challenge.reward || {
         type: "percentage",
         value: "",
       },
 
     status: "pending",
-
-    /*
-     * لازم Order عشان الخصم يتفعل.
-     */
 
     requiresOrder: true,
 
@@ -723,11 +875,7 @@ export async function createSecretChallengeClaim(
   };
 
   /*
-   * نعمل Check أخير في Firebase.
-   *
-   * ملاحظة:
-   * للتنفيذ الأمني الأقوى لازم Firestore Rules
-   * تمنع duplicate claims لنفس challenge/device.
+   * CHECK أخير قبل الإنشاء
    */
 
   const q = query(
@@ -755,13 +903,16 @@ export async function createSecretChallengeClaim(
 
     const existingClaim = {
       id: existing.id,
+
       ...existing.data(),
     };
 
     return {
       success: false,
       reason: "already-claimed",
-      claim: existingClaim,
+
+      claim:
+        existingClaim,
     };
   }
 
@@ -773,12 +924,9 @@ export async function createSecretChallengeClaim(
 
   const claim = {
     id: claimRef.id,
+
     ...claimData,
   };
-
-  /*
-   * نحفظ النتيجة محليًا.
-   */
 
   try {
     localStorage.setItem(
@@ -795,6 +943,7 @@ export async function createSecretChallengeClaim(
 
   return {
     success: true,
+
     claim,
   };
 }
@@ -829,6 +978,7 @@ export async function getPendingSecretClaims() {
   return snapshot.docs.map(
     (item) => ({
       id: item.id,
+
       ...item.data(),
     })
   );
@@ -866,7 +1016,9 @@ export async function getSecretClaimByCouponCode(
   const snapshot =
     await getDocs(q);
 
-  if (snapshot.empty) {
+  if (
+    snapshot.empty
+  ) {
     return null;
   }
 
@@ -875,6 +1027,7 @@ export async function getSecretClaimByCouponCode(
 
   return {
     id: item.id,
+
     ...item.data(),
   };
 }
@@ -884,7 +1037,12 @@ export async function getSecretClaimByCouponCode(
 MARK CLAIM AS USED
 ====================================================
 
-دي المفروض تتنادى بعد نجاح إنشاء Order.
+دي ما زالت موجودة للتوافق مع أي مكان قديم
+في المشروع بيستدعيها.
+
+Checkout الجديد مش هيعتمد عليها
+لتأكيد الطلب؛ تأكيد الاستخدام هيتم
+داخل transaction مع إنشاء الطلب.
 ====================================================
 */
 
@@ -911,10 +1069,58 @@ export async function markSecretClaimAsUsed(
       claimId
     );
 
+  const currentSnapshot =
+    await getDoc(
+      claimRef
+    );
+
+  if (
+    !currentSnapshot.exists()
+  ) {
+    throw new Error(
+      "المكافأة غير موجودة."
+    );
+  }
+
+  const currentData =
+    currentSnapshot.data();
+
+  if (
+    currentData.status ===
+    "used"
+  ) {
+    if (
+      currentData.orderId ===
+      orderId
+    ) {
+      return true;
+    }
+
+    const error =
+      new Error(
+        "المكافأة مستخدمة بالفعل."
+      );
+
+    error.code =
+      "SECRET_CLAIM_ALREADY_USED";
+
+    throw error;
+  }
+
+  if (
+    currentData.status !==
+    "pending"
+  ) {
+    throw new Error(
+      "المكافأة غير متاحة للاستخدام."
+    );
+  }
+
   await updateDoc(
     claimRef,
     {
       status: "used",
+
       orderId,
 
       usedAt:
@@ -925,31 +1131,15 @@ export async function markSecretClaimAsUsed(
     }
   );
 
-  /*
-   * نمسح النسخة المحلية
-   * عشان الجهاز يعرف إن المكافأة
-   * خلاص اتستخدمت.
-   */
-
   try {
-    const current =
-      await getDoc(
-        claimRef
+    if (
+      currentData.challengeId
+    ) {
+      localStorage.removeItem(
+        getLocalClaimKey(
+          currentData.challengeId
+        )
       );
-
-    if (current.exists()) {
-      const data =
-        current.data();
-
-      if (
-        data.challengeId
-      ) {
-        localStorage.removeItem(
-          getLocalClaimKey(
-            data.challengeId
-          )
-        );
-      }
     }
   } catch {
     // تجاهل

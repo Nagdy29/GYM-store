@@ -24,9 +24,13 @@ import {
   updateSecretChallenge,
 } from "../firebase/secretChallenges";
 
+const CURRENT_YEAR =
+  new Date().getFullYear();
+
 const EMPTY_FORM = {
   title: "",
   description: "",
+  year: String(CURRENT_YEAR),
   question: "",
   answer: "",
   hints: [""],
@@ -96,6 +100,12 @@ function AdminSecretChallenge() {
   const [form, setForm] =
     useState(EMPTY_FORM);
 
+  /*
+  ==================================================
+  LOAD
+  ==================================================
+  */
+
   const loadChallenges =
     useCallback(async () => {
       try {
@@ -128,6 +138,12 @@ function AdminSecretChallenge() {
     loadChallenges();
   }, [loadChallenges]);
 
+  /*
+  ==================================================
+  ACTIVE CHALLENGE
+  ==================================================
+  */
+
   const activeChallenge =
     useMemo(
       () =>
@@ -139,9 +155,20 @@ function AdminSecretChallenge() {
       [challenges]
     );
 
+  /*
+  ==================================================
+  RESET FORM
+  ==================================================
+  */
+
   const resetForm = () => {
     setForm({
       ...EMPTY_FORM,
+
+      year: String(
+        CURRENT_YEAR
+      ),
+
       hints: [""],
     });
 
@@ -149,9 +176,20 @@ function AdminSecretChallenge() {
     setShowForm(false);
   };
 
+  /*
+  ==================================================
+  ADD FORM
+  ==================================================
+  */
+
   const openAdd = () => {
     setForm({
       ...EMPTY_FORM,
+
+      year: String(
+        CURRENT_YEAR
+      ),
+
       hints: [""],
     });
 
@@ -159,6 +197,12 @@ function AdminSecretChallenge() {
     setError("");
     setShowForm(true);
   };
+
+  /*
+  ==================================================
+  EDIT FORM
+  ==================================================
+  */
 
   const openEdit = (
     challenge
@@ -175,6 +219,19 @@ function AdminSecretChallenge() {
         challenge.description ||
         "",
 
+      year:
+        challenge.year !==
+          undefined &&
+        challenge.year !==
+          null &&
+        challenge.year !== ""
+          ? String(
+              challenge.year
+            )
+          : String(
+              CURRENT_YEAR
+            ),
+
       question:
         challenge.question ||
         "",
@@ -188,7 +245,9 @@ function AdminSecretChallenge() {
           challenge.hints
         ) &&
         challenge.hints.length
-          ? challenge.hints
+          ? [
+              ...challenge.hints,
+            ]
               .sort(
                 (a, b) =>
                   Number(
@@ -222,8 +281,8 @@ function AdminSecretChallenge() {
           ?.productName || "",
 
       active:
-        challenge.active !==
-        false,
+        challenge.active ===
+        true,
 
       startAt:
         challenge.startAt || "",
@@ -236,19 +295,33 @@ function AdminSecretChallenge() {
     setShowForm(true);
   };
 
+  /*
+  ==================================================
+  UPDATE FORM
+  ==================================================
+  */
+
   const updateForm = (
     key,
     value
   ) => {
     setForm((current) => ({
       ...current,
+
       [key]: value,
     }));
   };
 
+  /*
+  ==================================================
+  HINTS
+  ==================================================
+  */
+
   const addHint = () => {
     setForm((current) => ({
       ...current,
+
       hints: [
         ...current.hints,
         "",
@@ -268,6 +341,7 @@ function AdminSecretChallenge() {
 
       return {
         ...current,
+
         hints:
           next.length
             ? next
@@ -282,6 +356,7 @@ function AdminSecretChallenge() {
   ) => {
     setForm((current) => ({
       ...current,
+
       hints:
         current.hints.map(
           (
@@ -296,9 +371,19 @@ function AdminSecretChallenge() {
     }));
   };
 
+  /*
+  ==================================================
+  SUBMIT
+  ==================================================
+  */
+
   const handleSubmit =
     async (event) => {
       event.preventDefault();
+
+      /*
+       * TITLE
+       */
 
       if (
         !form.title.trim()
@@ -309,35 +394,83 @@ function AdminSecretChallenge() {
         return;
       }
 
+      /*
+       * YEAR
+       */
+
       if (
-        !form.question.trim()
+        String(
+          form.year
+        ).trim() === ""
       ) {
         setError(
-          "اكتب السؤال."
+          "حدد سنة السؤال."
         );
         return;
       }
 
+      const numericYear =
+        Number(form.year);
+
       if (
-        !form.answer.trim()
+        !Number.isInteger(
+          numericYear
+        ) ||
+        numericYear < 1900 ||
+        numericYear > 2100
       ) {
+        setError(
+          "اكتب سنة صحيحة بين 1900 و 2100."
+        );
+        return;
+      }
+
+      /*
+       * QUESTION
+       */
+
+      const question =
+        form.question.trim();
+
+      if (!question) {
+        setError(
+          "اكتب السؤال اليدوي."
+        );
+        return;
+      }
+
+      /*
+       * ANSWER
+       */
+
+      const answer =
+        form.answer.trim();
+
+      if (!answer) {
         setError(
           "اكتب الإجابة الصحيحة."
         );
         return;
       }
 
+      /*
+       * HINTS
+       */
+
       const hints =
         form.hints
           .map(
             (hint) =>
-              hint.trim()
+              String(
+                hint || ""
+              ).trim()
           )
           .filter(Boolean)
           .map(
             (hint, index) => ({
               order:
                 index + 1,
+
               text: hint,
             })
           );
@@ -350,6 +483,10 @@ function AdminSecretChallenge() {
         );
         return;
       }
+
+      /*
+       * REWARD - PERCENTAGE
+       */
 
       if (
         form.rewardType ===
@@ -367,6 +504,23 @@ function AdminSecretChallenge() {
 
       if (
         form.rewardType ===
+          "percentage" &&
+        Number(
+          form.rewardValue
+        ) > 100
+      ) {
+        setError(
+          "نسبة الخصم لا يمكن أن تكون أكبر من 100%."
+        );
+        return;
+      }
+
+      /*
+       * REWARD - AMOUNT
+       */
+
+      if (
+        form.rewardType ===
           "amount" &&
         (!form.rewardValue ||
           Number(
@@ -378,6 +532,10 @@ function AdminSecretChallenge() {
         );
         return;
       }
+
+      /*
+       * REWARD - PRODUCT
+       */
 
       if (
         form.rewardType ===
@@ -394,6 +552,12 @@ function AdminSecretChallenge() {
         setSaving(true);
         setError("");
 
+        /*
+         * DATA
+         *
+         * السؤال والسنة بيتبعتوا صراحة.
+         */
+
         const data = {
           title:
             form.title.trim(),
@@ -401,11 +565,12 @@ function AdminSecretChallenge() {
           description:
             form.description.trim(),
 
-          question:
-            form.question.trim(),
+          year:
+            numericYear,
 
-          answer:
-            form.answer.trim(),
+          question,
+
+          answer,
 
           hints,
 
@@ -424,93 +589,181 @@ function AdminSecretChallenge() {
           },
 
           active:
-            Boolean(
-              form.active
-            ),
+            form.active ===
+            true,
 
           startAt:
-            form.startAt,
+            form.startAt || "",
 
           endAt:
-            form.endAt,
+            form.endAt || "",
         };
 
-        if (
-          editingId
-        ) {
-          const updated =
-            await updateSecretChallenge(
-              editingId,
-              data
-            );
+        /*
+        ==============================================
+        CREATE
+        ==============================================
+        */
 
-          setChallenges(
-            (current) =>
-              current.map(
-                (item) =>
-                  item.id ===
-                  editingId
-                    ? {
-                        ...item,
-                        ...updated,
-                      }
-                    : item
-              )
-          );
-        } else {
+        if (!editingId) {
           /*
-           * نخلي التحديات القديمة
-           * غير فعالة لو الجديد فعال.
+           * لو الجديد فعال:
+           * نعطل كل التحديات القديمة.
            */
-          if (
-            data.active
-          ) {
+
+          if (data.active) {
             const activeItems =
               challenges.filter(
                 (item) =>
-                  item.active
+                  item.active ===
+                  true
               );
 
             for (const item of activeItems) {
-              try {
-                await updateSecretChallenge(
-                  item.id,
-                  {
-                    ...item,
-                    active: false,
-                  }
-                );
-              } catch (
-                updateError
-              ) {
-                console.error(
-                  updateError
-                );
-              }
+              await updateSecretChallenge(
+                item.id,
+                {
+                  title:
+                    item.title ||
+                    "",
+
+                  description:
+                    item.description ||
+                    "",
+
+                  year:
+                    item.year ||
+                    CURRENT_YEAR,
+
+                  question:
+                    item.question ||
+                    "",
+
+                  answer:
+                    item.answer ||
+                    "",
+
+                  hints:
+                    item.hints ||
+                    [],
+
+                  reward:
+                    item.reward || {
+                      type:
+                        "percentage",
+
+                      value: "",
+                    },
+
+                  active:
+                    false,
+
+                  startAt:
+                    item.startAt ||
+                    "",
+
+                  endAt:
+                    item.endAt ||
+                    "",
+                }
+              );
             }
           }
 
-          const created =
-            await addSecretChallenge(
-              data
-            );
-
-          setChallenges(
-            (current) => [
-              created,
-              ...current.map(
-                (item) =>
-                  data.active
-                    ? {
-                        ...item,
-                        active:
-                          false,
-                      }
-                    : item
-              ),
-            ]
+          await addSecretChallenge(
+            data
           );
         }
+
+        /*
+        ==============================================
+        UPDATE
+        ==============================================
+        */
+
+        else {
+          /*
+           * لو التعديل هيخلي التحدي فعال:
+           * نعطل أي تحدي تاني.
+           */
+
+          if (data.active) {
+            const activeItems =
+              challenges.filter(
+                (item) =>
+                  item.active ===
+                    true &&
+                  item.id !==
+                    editingId
+              );
+
+            for (const item of activeItems) {
+              await updateSecretChallenge(
+                item.id,
+                {
+                  title:
+                    item.title ||
+                    "",
+
+                  description:
+                    item.description ||
+                    "",
+
+                  year:
+                    item.year ||
+                    CURRENT_YEAR,
+
+                  question:
+                    item.question ||
+                    "",
+
+                  answer:
+                    item.answer ||
+                    "",
+
+                  hints:
+                    item.hints ||
+                    [],
+
+                  reward:
+                    item.reward || {
+                      type:
+                        "percentage",
+
+                      value: "",
+                    },
+
+                  active:
+                    false,
+
+                  startAt:
+                    item.startAt ||
+                    "",
+
+                  endAt:
+                    item.endAt ||
+                    "",
+                }
+              );
+            }
+          }
+
+          await updateSecretChallenge(
+            editingId,
+            data
+          );
+        }
+
+        /*
+        ==============================================
+        IMPORTANT
+        ==============================================
+
+        نعيد تحميل Firebase بالكامل بعد الحفظ
+        بدل الاعتماد على state قديم.
+        */
+
+        await loadChallenges();
 
         resetForm();
       } catch (err) {
@@ -528,6 +781,12 @@ function AdminSecretChallenge() {
       }
     };
 
+  /*
+  ==================================================
+  DELETE
+  ==================================================
+  */
+
   const handleDelete =
     async (challenge) => {
       const confirmed =
@@ -543,20 +802,14 @@ function AdminSecretChallenge() {
         setDeletingId(
           challenge.id
         );
+
         setError("");
 
         await deleteSecretChallenge(
           challenge.id
         );
 
-        setChallenges(
-          (current) =>
-            current.filter(
-              (item) =>
-                item.id !==
-                challenge.id
-            )
-        );
+        await loadChallenges();
 
         if (
           editingId ===
@@ -579,23 +832,32 @@ function AdminSecretChallenge() {
       }
     };
 
+  /*
+  ==================================================
+  TOGGLE ACTIVE
+  ==================================================
+  */
+
   const toggleActive =
     async (challenge) => {
       try {
         setError("");
 
         const nextActive =
-          !challenge.active;
+          challenge.active !==
+          true;
 
         /*
-         * لو هيفعّل تحدي،
+         * لو هيفعل تحدي:
          * نعطل أي تحدي تاني.
          */
+
         if (nextActive) {
           const activeItems =
             challenges.filter(
               (item) =>
-                item.active &&
+                item.active ===
+                  true &&
                 item.id !==
                   challenge.id
             );
@@ -604,52 +866,115 @@ function AdminSecretChallenge() {
             await updateSecretChallenge(
               item.id,
               {
-                ...item,
+                title:
+                  item.title ||
+                  "",
+
+                description:
+                  item.description ||
+                  "",
+
+                year:
+                  item.year ||
+                  CURRENT_YEAR,
+
+                question:
+                  item.question ||
+                  "",
+
+                answer:
+                  item.answer ||
+                  "",
+
+                hints:
+                  item.hints ||
+                  [],
+
+                reward:
+                  item.reward || {
+                    type:
+                      "percentage",
+
+                    value: "",
+                  },
+
                 active:
                   false,
+
+                startAt:
+                  item.startAt ||
+                  "",
+
+                endAt:
+                  item.endAt ||
+                  "",
               }
             );
           }
         }
 
-        const updated =
-          await updateSecretChallenge(
-            challenge.id,
-            {
-              ...challenge,
-              active:
-                nextActive,
-            }
-          );
+        /*
+         * تحديث التحدي المطلوب.
+         */
 
-        setChallenges(
-          (current) =>
-            current.map(
-              (item) => {
-                if (
-                  item.id ===
-                  challenge.id
-                ) {
-                  return {
-                    ...item,
-                    ...updated,
-                  };
-                }
+        await updateSecretChallenge(
+          challenge.id,
+          {
+            title:
+              challenge.title ||
+              "",
 
-                if (
-                  nextActive
-                ) {
-                  return {
-                    ...item,
-                    active:
-                      false,
-                  };
-                }
+            description:
+              challenge.description ||
+              "",
 
-                return item;
-              }
-            )
+            year:
+              challenge.year ||
+              CURRENT_YEAR,
+
+            /*
+             * أهم حاجة:
+             * نحافظ على السؤال.
+             */
+
+            question:
+              challenge.question ||
+              "",
+
+            answer:
+              challenge.answer ||
+              "",
+
+            hints:
+              challenge.hints ||
+              [],
+
+            reward:
+              challenge.reward || {
+                type:
+                  "percentage",
+
+                value: "",
+              },
+
+            active:
+              nextActive,
+
+            startAt:
+              challenge.startAt ||
+              "",
+
+            endAt:
+              challenge.endAt ||
+              "",
+          }
         );
+
+        /*
+         * إعادة تحميل من Firebase.
+         */
+
+        await loadChallenges();
       } catch (err) {
         console.error(
           "Toggle Secret Challenge Error:",
@@ -657,10 +982,17 @@ function AdminSecretChallenge() {
         );
 
         setError(
-          "مش قادرين نغير حالة التحدي."
+          err?.message ||
+            "مش قادرين نغير حالة التحدي."
         );
       }
     };
+
+  /*
+  ==================================================
+  UI
+  ==================================================
+  */
 
   return (
     <div
@@ -762,7 +1094,7 @@ function AdminSecretChallenge() {
                 </h2>
 
                 <p className="mt-1 text-xs text-zinc-500">
-                  كل البيانات دي هتتخزن في Firebase.
+                  اكتب أي سؤال من دماغك وحدد السنة بتاعته، وكل البيانات هتتخزن في Firebase.
                 </p>
               </div>
 
@@ -806,9 +1138,45 @@ function AdminSecretChallenge() {
                 />
               </div>
 
-              {/* STATUS */}
+              {/* YEAR */}
 
               <div>
+                <label className="mb-2 flex items-center gap-2 text-sm font-black">
+                  <CalendarDays
+                    size={16}
+                  />
+
+                  سنة السؤال
+                </label>
+
+                <input
+                  type="number"
+                  min="1900"
+                  max="2100"
+                  step="1"
+                  value={
+                    form.year
+                  }
+                  onChange={(event) =>
+                    updateForm(
+                      "year",
+                      event.target
+                        .value
+                    )
+                  }
+                  placeholder="مثال: 2026"
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-black outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
+                  dir="ltr"
+                />
+
+                <p className="mt-2 text-[10px] font-semibold text-zinc-400">
+                  حدد السنة اللي السؤال مرتبط بيها.
+                </p>
+              </div>
+
+              {/* STATUS */}
+
+              <div className="lg:col-span-2">
                 <label className="mb-2 block text-sm font-black">
                   حالة التحدي
                 </label>
@@ -867,12 +1235,18 @@ function AdminSecretChallenge() {
                 />
               </div>
 
-              {/* QUESTION */}
+              {/* MANUAL QUESTION */}
 
               <div className="lg:col-span-2">
-                <label className="mb-2 block text-sm font-black">
-                  السؤال
-                </label>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-sm font-black">
+                    السؤال اليدوي
+                  </label>
+
+                  <span className="rounded-full bg-[#39ff14]/10 px-3 py-1 text-[9px] font-black text-green-700">
+                    اكتب أي سؤال من دماغك
+                  </span>
+                </div>
 
                 <textarea
                   value={
@@ -886,9 +1260,13 @@ function AdminSecretChallenge() {
                     )
                   }
                   rows={4}
-                  placeholder="اكتب السؤال أو اللغز هنا..."
+                  placeholder="مثال: مين اللاعب اللي كان لابس رقم 10 في موسم 2024؟"
                   className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                 />
+
+                <p className="mt-2 text-[10px] font-semibold text-zinc-400">
+                  مفيش أسئلة جاهزة إجباري — اكتب السؤال اللي أنت عايزه بإيدك عادي.
+                </p>
               </div>
 
               {/* ANSWER */}
@@ -936,6 +1314,7 @@ function AdminSecretChallenge() {
                     className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-black transition hover:border-black hover:bg-zinc-100"
                   >
                     <Plus size={15} />
+
                     إضافة هنت
                   </button>
                 </div>
@@ -1019,30 +1398,39 @@ function AdminSecretChallenge() {
                     {
                       value:
                         "percentage",
+
                       label:
                         "خصم نسبة %",
                     },
+
                     {
                       value:
                         "amount",
+
                       label:
                         "خصم مبلغ",
                     },
+
                     {
                       value:
                         "freeShipping",
+
                       label:
                         "شحن مجاني",
                     },
+
                     {
                       value:
                         "giftTshirt",
+
                       label:
                         "تيشيرت هدية",
                     },
+
                     {
                       value:
                         "giftProduct",
+
                       label:
                         "منتج هدية",
                     },
@@ -1073,15 +1461,13 @@ function AdminSecretChallenge() {
                         </p>
 
                         <p className="mt-1 text-[10px] text-zinc-400">
-                          {
-                            item.value ===
-                            "percentage"
-                              ? "مثال: 20%"
-                              : item.value ===
-                                "amount"
-                              ? "مثال: 100 جنيه"
-                              : "جائزة مباشرة"
-                          }
+                          {item.value ===
+                          "percentage"
+                            ? "مثال: 20%"
+                            : item.value ===
+                              "amount"
+                            ? "مثال: 100 جنيه"
+                            : "جائزة مباشرة"}
                         </p>
                       </button>
                     )
@@ -1165,6 +1551,7 @@ function AdminSecretChallenge() {
                   <CalendarDays
                     size={16}
                   />
+
                   يبدأ من
                 </label>
 
@@ -1190,6 +1577,7 @@ function AdminSecretChallenge() {
                   <CalendarDays
                     size={16}
                   />
+
                   ينتهي في
                 </label>
 
@@ -1205,7 +1593,7 @@ function AdminSecretChallenge() {
                         .value
                     )
                   }
-                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-semibold outline-none focus:border-[#39ff14]"
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold outline-none focus:border-[#39ff14]"
                   dir="ltr"
                 />
               </div>
@@ -1338,6 +1726,22 @@ function AdminSecretChallenge() {
                       }
                     </h2>
 
+                    {challenge.year && (
+                      <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
+                        <CalendarDays
+                          size={12}
+                          className="text-[#39ff14]"
+                        />
+
+                        <span className="text-[10px] font-black text-zinc-300">
+                          سنة السؤال:{" "}
+                          {
+                            challenge.year
+                          }
+                        </span>
+                      </div>
+                    )}
+
                     <p className="mt-2 line-clamp-2 text-xs leading-6 text-zinc-500">
                       {
                         challenge.description
@@ -1347,14 +1751,23 @@ function AdminSecretChallenge() {
 
                   <div className="p-5">
                     <div className="rounded-2xl bg-zinc-50 p-4">
-                      <p className="text-[10px] font-bold text-zinc-400">
-                        السؤال
-                      </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-bold text-zinc-400">
+                          السؤال اليدوي
+                        </p>
+
+                        {challenge.year && (
+                          <span className="text-[10px] font-black text-green-700">
+                            {
+                              challenge.year
+                            }
+                          </span>
+                        )}
+                      </div>
 
                       <p className="mt-2 line-clamp-3 text-sm font-black text-zinc-800">
-                        {
-                          challenge.question
-                        }
+                        {challenge.question ||
+                          "لا يوجد سؤال محفوظ"}
                       </p>
                     </div>
 

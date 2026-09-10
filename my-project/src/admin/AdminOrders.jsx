@@ -7,9 +7,11 @@ import {
 import {
   CheckCircle2,
   ClipboardList,
+  Gift,
   Loader2,
   Package,
   RefreshCw,
+  Sparkles,
   Trash2,
   Truck,
   User,
@@ -25,7 +27,9 @@ import {
 } from "../firebase/orders";
 
 function formatPrice(price) {
-  return `${Number(price || 0).toLocaleString(
+  return `${Number(
+    price || 0
+  ).toLocaleString(
     "ar-EG"
   )} جنيه`;
 }
@@ -37,20 +41,26 @@ function formatDate(value) {
 
   try {
     const date =
-      typeof value?.toDate === "function"
+      typeof value?.toDate ===
+      "function"
         ? value.toDate()
         : new Date(value);
 
-    return date.toLocaleString("ar-EG", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    return date.toLocaleString(
+      "ar-EG",
+      {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }
+    );
   } catch {
     return "بدون تاريخ";
   }
 }
 
-function getStatusClasses(status) {
+function getStatusClasses(
+  status
+) {
   switch (status) {
     case "confirmed":
       return "bg-blue-100 text-blue-700";
@@ -72,112 +82,203 @@ function getStatusClasses(status) {
   }
 }
 
+function getRewardLabel(
+  reward
+) {
+  if (!reward) {
+    return "بدون مكافأة";
+  }
+
+  switch (
+    reward.rewardType
+  ) {
+    case "percentage":
+      return `خصم ${reward.rewardValue}%`;
+
+    case "amount":
+      return `خصم ${reward.rewardValue} جنيه`;
+
+    case "freeShipping":
+      return "شحن مجاني";
+
+    case "giftTshirt":
+      return "تيشيرت هدية";
+
+    case "giftProduct":
+      return (
+        reward.rewardProductName ||
+        "منتج هدية"
+      );
+
+    default:
+      return "مكافأة المفتاح الخفي";
+  }
+}
+
+function getRewardTypeText(
+  reward
+) {
+  if (!reward) {
+    return "";
+  }
+
+  switch (
+    reward.rewardType
+  ) {
+    case "percentage":
+      return "خصم بالنسبة المئوية";
+
+    case "amount":
+      return "خصم مبلغ ثابت";
+
+    case "freeShipping":
+      return "إعفاء من الشحن";
+
+    case "giftTshirt":
+      return "تيشيرت مجاني";
+
+    case "giftProduct":
+      return "منتج مجاني";
+
+    default:
+      return "مكافأة";
+  }
+}
+
 function AdminOrders() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [updatingId, setUpdatingId] =
-    useState(null);
-  const [deletingId, setDeletingId] =
-    useState(null);
+  const [orders, setOrders] =
+    useState([]);
 
-  const loadOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const [loading, setLoading] =
+    useState(true);
 
-      const data =
-        await getOrdersFromFirebase();
+  const [error, setError] =
+    useState("");
 
-      setOrders(data);
-    } catch (firebaseError) {
-      console.error(
-        "Admin Orders Firebase Error:",
-        firebaseError
-      );
+  const [
+    updatingId,
+    setUpdatingId,
+  ] = useState(null);
 
-      setError(
-        "مش قادرين نحمل الطلبات من Firebase حاليًا."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [
+    deletingId,
+    setDeletingId,
+  ] = useState(null);
+
+  const loadOrders =
+    useCallback(
+      async () => {
+        try {
+          setLoading(true);
+          setError("");
+
+          const data =
+            await getOrdersFromFirebase();
+
+          setOrders(data);
+        } catch (firebaseError) {
+          console.error(
+            "Admin Orders Firebase Error:",
+            firebaseError
+          );
+
+          setError(
+            "مش قادرين نحمل الطلبات من Firebase حاليًا."
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      []
+    );
 
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
 
-  const handleStatusChange = async (
-    orderId,
-    status
-  ) => {
-    try {
-      setUpdatingId(orderId);
+  const handleStatusChange =
+    async (
+      orderId,
+      status
+    ) => {
+      try {
+        setUpdatingId(
+          orderId
+        );
 
-      await updateOrderStatusInFirebase(
-        orderId,
-        status
-      );
+        await updateOrderStatusInFirebase(
+          orderId,
+          status
+        );
 
-      setOrders((currentOrders) =>
-        currentOrders.map((order) =>
-          order.id === orderId
-            ? {
-                ...order,
-                status,
-              }
-            : order
-        )
-      );
-    } catch (firebaseError) {
-      console.error(
-        "Update Order Status Error:",
-        firebaseError
-      );
+        setOrders(
+          (currentOrders) =>
+            currentOrders.map(
+              (order) =>
+                order.id ===
+                orderId
+                  ? {
+                      ...order,
+                      status,
+                    }
+                  : order
+            )
+        );
+      } catch (firebaseError) {
+        console.error(
+          "Update Order Status Error:",
+          firebaseError
+        );
 
-      window.alert(
-        "حصل خطأ أثناء تحديث حالة الطلب."
-      );
-    } finally {
-      setUpdatingId(null);
-    }
-  };
+        window.alert(
+          "حصل خطأ أثناء تحديث حالة الطلب."
+        );
+      } finally {
+        setUpdatingId(null);
+      }
+    };
 
-  const handleDelete = async (orderId) => {
-    const confirmed = window.confirm(
-      "هل أنت متأكد من حذف الطلب؟ العملية دي لا يمكن التراجع عنها."
-    );
+  const handleDelete =
+    async (orderId) => {
+      const confirmed =
+        window.confirm(
+          "هل أنت متأكد من حذف الطلب؟ العملية دي لا يمكن التراجع عنها."
+        );
 
-    if (!confirmed) {
-      return;
-    }
+      if (!confirmed) {
+        return;
+      }
 
-    try {
-      setDeletingId(orderId);
+      try {
+        setDeletingId(
+          orderId
+        );
 
-      await deleteOrderFromFirebase(
-        orderId
-      );
+        await deleteOrderFromFirebase(
+          orderId
+        );
 
-      setOrders((currentOrders) =>
-        currentOrders.filter(
-          (order) => order.id !== orderId
-        )
-      );
-    } catch (firebaseError) {
-      console.error(
-        "Delete Order Error:",
-        firebaseError
-      );
+        setOrders(
+          (currentOrders) =>
+            currentOrders.filter(
+              (order) =>
+                order.id !==
+                orderId
+            )
+        );
+      } catch (firebaseError) {
+        console.error(
+          "Delete Order Error:",
+          firebaseError
+        );
 
-      window.alert(
-        "حصل خطأ أثناء حذف الطلب."
-      );
-    } finally {
-      setDeletingId(null);
-    }
-  };
+        window.alert(
+          "حصل خطأ أثناء حذف الطلب."
+        );
+      } finally {
+        setDeletingId(null);
+      }
+    };
 
   if (loading) {
     return (
@@ -215,6 +316,7 @@ function AdminOrders() {
   return (
     <div>
       {/* HEADER */}
+
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <span className="text-xs font-black text-[#16a34a]">
@@ -232,16 +334,21 @@ function AdminOrders() {
 
         <button
           type="button"
-          onClick={loadOrders}
+          onClick={
+            loadOrders
+          }
           disabled={loading}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-black text-white transition-all hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <RefreshCw size={17} />
+          <RefreshCw
+            size={17}
+          />
           تحديث
         </button>
       </div>
 
       {/* ERROR */}
+
       {error && (
         <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -257,7 +364,9 @@ function AdminOrders() {
 
             <button
               type="button"
-              onClick={loadOrders}
+              onClick={
+                loadOrders
+              }
               className="rounded-xl bg-red-600 px-4 py-2 text-xs font-black text-white"
             >
               حاول تاني
@@ -267,9 +376,12 @@ function AdminOrders() {
       )}
 
       {/* COUNT */}
+
       <div className="mt-7 flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-5">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-black text-[#39ff14]">
-          <ClipboardList size={20} />
+          <ClipboardList
+            size={20}
+          />
         </div>
 
         <div>
@@ -284,7 +396,10 @@ function AdminOrders() {
       </div>
 
       {/* EMPTY */}
-      {orders.length === 0 && !error ? (
+
+      {orders.length ===
+        0 &&
+      !error ? (
         <div className="mt-6 rounded-3xl border border-dashed border-zinc-300 bg-white p-12 text-center">
           <ClipboardList
             size={45}
@@ -301,344 +416,634 @@ function AdminOrders() {
         </div>
       ) : (
         <div className="mt-6 grid gap-5">
-          {orders.map((order) => {
-            const status =
-              order.status || "pending";
+          {orders.map(
+            (order) => {
+              const status =
+                order.status ||
+                "pending";
 
-            return (
-              <article
-                key={order.id}
-                className="overflow-hidden rounded-3xl border border-zinc-200 bg-white"
-              >
-                {/* TOP */}
-                <div className="border-b border-zinc-100 p-5 sm:p-6">
-                  <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                    <div>
+              const reward =
+                order.secretReward ||
+                null;
+
+              const discountAmount =
+                Number(
+                  order.discount
+                ) ||
+                Number(
+                  reward?.discount
+                ) ||
+                0;
+
+              const hasReward =
+                Boolean(
+                  reward
+                );
+
+              const hasDiscount =
+                discountAmount >
+                0;
+
+              const hasFreeShipping =
+                Boolean(
+                  reward?.freeShipping
+                ) ||
+                reward?.rewardType ===
+                  "freeShipping";
+
+              return (
+                <article
+                  key={
+                    order.id
+                  }
+                  className="overflow-hidden rounded-3xl border border-zinc-200 bg-white"
+                >
+                  {/* TOP */}
+
+                  <div className="border-b border-zinc-100 p-5 sm:p-6">
+                    <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="text-[10px] font-bold text-zinc-400">
+                            رقم الطلب
+                          </span>
+
+                          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black">
+                            {order.orderNumber ||
+                              order.id}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
+                          <ClipboardList
+                            size={14}
+                          />
+
+                          {formatDate(
+                            order.createdAt
+                          )}
+                        </div>
+                      </div>
+
                       <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-[10px] font-bold text-zinc-400">
-                          رقم الطلب
+                        <span
+                          className={`rounded-full px-3 py-2 text-[10px] font-black ${getStatusClasses(
+                            status
+                          )}`}
+                        >
+                          {getOrderStatusLabel(
+                            status
+                          )}
                         </span>
 
-                        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-black">
-                          {order.orderNumber ||
-                            order.id}
+                        <span className="rounded-full bg-black px-4 py-2 text-xs font-black text-[#39ff14]">
+                          {formatPrice(
+                            order.total
+                          )}
                         </span>
                       </div>
-
-                      <div className="mt-3 flex items-center gap-2 text-xs text-zinc-400">
-                        <ClipboardList
-                          size={14}
-                        />
-                        {formatDate(
-                          order.createdAt
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span
-                        className={`rounded-full px-3 py-2 text-[10px] font-black ${getStatusClasses(
-                          status
-                        )}`}
-                      >
-                        {getOrderStatusLabel(
-                          status
-                        )}
-                      </span>
-
-                      <span className="rounded-full bg-black px-4 py-2 text-xs font-black text-[#39ff14]">
-                        {formatPrice(
-                          order.total
-                        )}
-                      </span>
                     </div>
                   </div>
-                </div>
 
-                {/* CUSTOMER */}
-                <div className="grid gap-4 p-5 sm:p-6 lg:grid-cols-3">
-                  <div className="rounded-2xl bg-zinc-50 p-4">
-                    <div className="flex items-center gap-2 text-zinc-400">
-                      <User size={15} />
+                  {/* CUSTOMER */}
 
-                      <p className="text-[10px]">
-                        العميل
+                  <div className="grid gap-4 p-5 sm:p-6 lg:grid-cols-3">
+                    <div className="rounded-2xl bg-zinc-50 p-4">
+                      <div className="flex items-center gap-2 text-zinc-400">
+                        <User
+                          size={15}
+                        />
+
+                        <p className="text-[10px]">
+                          العميل
+                        </p>
+                      </div>
+
+                      <p className="mt-2 text-sm font-black">
+                        {order.customer
+                          ?.name ||
+                          "غير محدد"}
                       </p>
                     </div>
 
-                    <p className="mt-2 text-sm font-black">
-                      {order.customer?.name ||
-                        "غير محدد"}
-                    </p>
-                  </div>
+                    <div className="rounded-2xl bg-zinc-50 p-4">
+                      <p className="text-[10px] text-zinc-400">
+                        الهاتف
+                      </p>
 
-                  <div className="rounded-2xl bg-zinc-50 p-4">
-                    <p className="text-[10px] text-zinc-400">
-                      الهاتف
-                    </p>
-
-                    <p
-                      dir="ltr"
-                      className="mt-2 text-right text-sm font-black"
-                    >
-                      {order.customer?.phone ||
-                        "غير محدد"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl bg-zinc-50 p-4">
-                    <p className="text-[10px] text-zinc-400">
-                      المحافظة
-                    </p>
-
-                    <p className="mt-2 text-sm font-black">
-                      {order.customer?.governorate ||
-                        "غير محدد"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* ADDRESS */}
-                <div className="px-5 pb-5 sm:px-6">
-                  <div className="rounded-2xl border border-zinc-100 bg-white p-4">
-                    <p className="text-[10px] font-bold text-zinc-400">
-                      العنوان
-                    </p>
-
-                    <p className="mt-2 text-sm font-bold text-zinc-700">
-                      {order.customer?.address ||
-                        "غير محدد"}
-                    </p>
-
-                    {order.customer?.notes && (
-                      <>
-                        <p className="mt-4 text-[10px] font-bold text-zinc-400">
-                          ملاحظات العميل
-                        </p>
-
-                        <p className="mt-2 text-sm text-zinc-600">
-                          {order.customer.notes}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* ITEMS */}
-                <div className="px-5 pb-5 sm:px-6">
-                  <div className="rounded-2xl bg-zinc-50 p-4">
-                    <div className="mb-4 flex items-center gap-2">
-                      <Package size={17} />
-
-                      <h3 className="text-sm font-black">
-                        المنتجات
-                      </h3>
+                      <p
+                        dir="ltr"
+                        className="mt-2 text-right text-sm font-black"
+                      >
+                        {order.customer
+                          ?.phone ||
+                          "غير محدد"}
+                      </p>
                     </div>
 
-                    <div className="space-y-3">
-                      {Array.isArray(
-                        order.items
-                      ) &&
-                        order.items.map(
-                          (item, index) => (
-                            <div
-                              key={`${item.id}-${index}`}
-                              className="flex items-center gap-3 rounded-xl bg-white p-3"
-                            >
-                              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
-                                {item.image ? (
-                                  <img
-                                    src={item.image}
-                                    alt={
-                                      item.name
-                                    }
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center text-zinc-300">
-                                    <Package
-                                      size={18}
-                                    />
-                                  </div>
-                                )}
-                              </div>
+                    <div className="rounded-2xl bg-zinc-50 p-4">
+                      <p className="text-[10px] text-zinc-400">
+                        المحافظة
+                      </p>
 
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-black">
-                                  {item.name}
-                                </p>
+                      <p className="mt-2 text-sm font-black">
+                        {order.customer
+                          ?.governorate ||
+                          order.shippingGovernorate ||
+                          "غير محدد"}
+                      </p>
+                    </div>
+                  </div>
 
-                                <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-zinc-400">
-                                  <span>
-                                    الكمية:{" "}
-                                    {item.quantity ||
-                                      1}
-                                  </span>
+                  {/* ADDRESS */}
 
-                                  {item.size && (
-                                    <span>
-                                      المقاس:{" "}
-                                      {item.size}
-                                    </span>
+                  <div className="px-5 pb-5 sm:px-6">
+                    <div className="rounded-2xl border border-zinc-100 bg-white p-4">
+                      <p className="text-[10px] font-bold text-zinc-400">
+                        العنوان
+                      </p>
+
+                      <p className="mt-2 text-sm font-bold text-zinc-700">
+                        {order.customer
+                          ?.address ||
+                          "غير محدد"}
+                      </p>
+
+                      {order.customer
+                        ?.notes && (
+                        <>
+                          <p className="mt-4 text-[10px] font-bold text-zinc-400">
+                            ملاحظات العميل
+                          </p>
+
+                          <p className="mt-2 text-sm text-zinc-600">
+                            {
+                              order
+                                .customer
+                                .notes
+                            }
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* SECRET REWARD */}
+
+                  {hasReward && (
+                    <div className="px-5 pb-5 sm:px-6">
+                      <div className="overflow-hidden rounded-2xl border border-[#39ff14]/30 bg-[#39ff14]/5">
+                        <div className="flex items-center gap-3 border-b border-[#39ff14]/15 bg-[#39ff14]/10 px-4 py-4">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#39ff14] text-black">
+                            <Gift
+                              size={19}
+                            />
+                          </div>
+
+                          <div>
+                            <p className="text-xs font-black text-[#15803d]">
+                              العميل استفاد من المكافأة 🎁
+                            </p>
+
+                            <p className="mt-1 text-sm font-black text-zinc-900">
+                              {getRewardLabel(
+                                reward
+                              )}
+                            </p>
+                          </div>
+
+                          <span className="mr-auto inline-flex items-center gap-1 rounded-full bg-black px-3 py-1.5 text-[9px] font-black text-[#39ff14]">
+                            <CheckCircle2
+                              size={12}
+                            />
+                            تم الاستخدام
+                          </span>
+                        </div>
+
+                        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                          {/* REWARD TYPE */}
+
+                          <div className="rounded-xl bg-white p-3">
+                            <p className="text-[9px] text-zinc-400">
+                              نوع المكافأة
+                            </p>
+
+                            <p className="mt-1 text-xs font-black">
+                              {getRewardTypeText(
+                                reward
+                              )}
+                            </p>
+                          </div>
+
+                          {/* CODE */}
+
+                          {reward.couponCode && (
+                            <div className="rounded-xl bg-white p-3">
+                              <p className="text-[9px] text-zinc-400">
+                                كود المكافأة
+                              </p>
+
+                              <code
+                                dir="ltr"
+                                className="mt-1 block text-xs font-black tracking-wider text-zinc-900"
+                              >
+                                {
+                                  reward.couponCode
+                                }
+                              </code>
+                            </div>
+                          )}
+
+                          {/* DISCOUNT */}
+
+                          <div className="rounded-xl bg-white p-3">
+                            <p className="text-[9px] text-zinc-400">
+                              الخصم الفعلي
+                            </p>
+
+                            <p className="mt-1 text-sm font-black text-[#16a34a]">
+                              {hasDiscount
+                                ? `-${formatPrice(
+                                    discountAmount
+                                  )}`
+                                : "0 جنيه"}
+                            </p>
+                          </div>
+
+                          {/* SHIPPING */}
+
+                          {hasFreeShipping && (
+                            <div className="rounded-xl bg-white p-3">
+                              <p className="text-[9px] text-zinc-400">
+                                ميزة الشحن
+                              </p>
+
+                              <p className="mt-1 text-sm font-black text-[#16a34a]">
+                                شحن مجاني
+                              </p>
+
+                              {Number(
+                                order.shippingBeforeReward
+                              ) >
+                                0 && (
+                                <p className="mt-1 text-[9px] text-zinc-400">
+                                  كان:{" "}
+                                  {formatPrice(
+                                    order.shippingBeforeReward
                                   )}
+                                </p>
+                              )}
+                            </div>
+                          )}
 
-                                  {item.color && (
-                                    <span>
-                                      اللون:{" "}
-                                      {item.color}
-                                    </span>
+                          {/* GIFT PRODUCT */}
+
+                          {reward.rewardProductName && (
+                            <div className="rounded-xl bg-white p-3 sm:col-span-2">
+                              <p className="text-[9px] text-zinc-400">
+                                المنتج الهدية
+                              </p>
+
+                              <p className="mt-1 text-xs font-black">
+                                {
+                                  reward.rewardProductName
+                                }
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* CHALLENGE */}
+
+                        {reward.challengeTitle && (
+                          <div className="flex items-center gap-2 border-t border-[#39ff14]/15 px-4 py-3">
+                            <Sparkles
+                              size={14}
+                              className="text-[#16a34a]"
+                            />
+
+                            <p className="text-[10px] text-zinc-500">
+                              حصل عليها من تحدي:{" "}
+                              <span className="font-black text-zinc-800">
+                                {
+                                  reward.challengeTitle
+                                }
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ITEMS */}
+
+                  <div className="px-5 pb-5 sm:px-6">
+                    <div className="rounded-2xl bg-zinc-50 p-4">
+                      <div className="mb-4 flex items-center gap-2">
+                        <Package
+                          size={17}
+                        />
+
+                        <h3 className="text-sm font-black">
+                          المنتجات
+                        </h3>
+                      </div>
+
+                      <div className="space-y-3">
+                        {Array.isArray(
+                          order.items
+                        ) &&
+                          order.items.map(
+                            (
+                              item,
+                              index
+                            ) => (
+                              <div
+                                key={`${item.id}-${index}`}
+                                className="flex items-center gap-3 rounded-xl bg-white p-3"
+                              >
+                                <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
+                                  {item.image ? (
+                                    <img
+                                      src={
+                                        item.image
+                                      }
+                                      alt={
+                                        item.name
+                                      }
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center text-zinc-300">
+                                      <Package
+                                        size={18}
+                                      />
+                                    </div>
                                   )}
                                 </div>
-                              </div>
 
-                              <span className="shrink-0 text-xs font-black">
-                                {formatPrice(
-                                  Number(
-                                    item.price
-                                  ) *
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-xs font-black">
+                                    {
+                                      item.name
+                                    }
+                                  </p>
+
+                                  <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-zinc-400">
+                                    <span>
+                                      الكمية:{" "}
+                                      {item.quantity ||
+                                        1}
+                                    </span>
+
+                                    {item.size && (
+                                      <span>
+                                        المقاس:{" "}
+                                        {
+                                          item.size
+                                        }
+                                      </span>
+                                    )}
+
+                                    {item.color && (
+                                      <span>
+                                        اللون:{" "}
+                                        {
+                                          item.color
+                                        }
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <span className="shrink-0 text-xs font-black">
+                                  {formatPrice(
                                     Number(
-                                      item.quantity ||
-                                        1
-                                    )
-                                )}
-                              </span>
-                            </div>
-                          )
-                        )}
+                                      item.price
+                                    ) *
+                                      Number(
+                                        item.quantity ||
+                                          1
+                                      )
+                                  )}
+                                </span>
+                              </div>
+                            )
+                          )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* SUMMARY */}
-                <div className="grid gap-3 border-t border-zinc-100 p-5 sm:grid-cols-3 sm:p-6">
-                  <div>
-                    <p className="text-[10px] text-zinc-400">
-                      المنتجات
-                    </p>
+                  {/* SUMMARY */}
 
-                    <p className="mt-1 text-sm font-black">
-                      {formatPrice(
-                        order.subtotal
-                      )}
-                    </p>
-                  </div>
+                  <div className="grid gap-3 border-t border-zinc-100 p-5 sm:grid-cols-2 lg:grid-cols-4 sm:p-6">
+                    <div>
+                      <p className="text-[10px] text-zinc-400">
+                        المنتجات
+                      </p>
 
-                  <div>
-                    <p className="text-[10px] text-zinc-400">
-                      الشحن
-                    </p>
+                      <p className="mt-1 text-sm font-black">
+                        {formatPrice(
+                          order.subtotal
+                        )}
+                      </p>
+                    </div>
 
-                    <p className="mt-1 text-sm font-black">
+                    <div>
+                      <p className="text-[10px] text-zinc-400">
+                        الشحن
+                      </p>
+
+                      <p className="mt-1 text-sm font-black">
+                        {Number(
+                          order.shipping
+                        ) === 0
+                          ? "مجاني"
+                          : formatPrice(
+                              order.shipping
+                            )}
+                      </p>
+
                       {Number(
-                        order.shipping
-                      ) === 0
-                        ? "مجاني"
-                        : formatPrice(
-                            order.shipping
+                        order.shippingBeforeReward
+                      ) >
+                        Number(
+                          order.shipping
+                        ) && (
+                        <p className="mt-1 text-[9px] text-zinc-400 line-through">
+                          قبل المكافأة:{" "}
+                          {formatPrice(
+                            order.shippingBeforeReward
                           )}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] text-zinc-400">
-                      الإجمالي
-                    </p>
-
-                    <p className="mt-1 text-lg font-black text-[#16a34a]">
-                      {formatPrice(
-                        order.total
+                        </p>
                       )}
-                    </p>
-                  </div>
-                </div>
+                    </div>
 
-                {/* ACTIONS */}
-                <div className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
-                    {status === "delivered" ? (
-                      <CheckCircle2
-                        size={16}
-                        className="text-[#16a34a]"
-                      />
-                    ) : status ===
-                      "cancelled" ? (
-                      <XCircle
-                        size={16}
-                        className="text-red-500"
-                      />
-                    ) : (
-                      <Truck
-                        size={16}
-                        className="text-zinc-500"
-                      />
-                    )}
+                    <div>
+                      <p className="text-[10px] text-zinc-400">
+                        الخصم
+                      </p>
 
-                    الدفع عند الاستلام
-                  </div>
+                      <p
+                        className={`mt-1 text-sm font-black ${
+                          discountAmount >
+                          0
+                            ? "text-[#16a34a]"
+                            : "text-zinc-700"
+                        }`}
+                      >
+                        {discountAmount >
+                        0
+                          ? `-${formatPrice(
+                              discountAmount
+                            )}`
+                          : "بدون خصم"}
+                      </p>
+                    </div>
 
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <select
-                      value={status}
-                      disabled={
-                        updatingId === order.id
-                      }
-                      onChange={(event) =>
-                        handleStatusChange(
-                          order.id,
-                          event.target.value
-                        )
-                      }
-                      className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs font-black outline-none focus:border-[#16a34a]"
-                    >
-                      {ORDER_STATUSES.map(
-                        (item) => (
-                          <option
-                            key={item.value}
-                            value={item.value}
-                          >
-                            {item.label}
-                          </option>
-                        )
+                    <div>
+                      <p className="text-[10px] text-zinc-400">
+                        الإجمالي النهائي
+                      </p>
+
+                      <p className="mt-1 text-lg font-black text-[#16a34a]">
+                        {formatPrice(
+                          order.total
+                        )}
+                      </p>
+
+                      {Number(
+                        order.originalTotal
+                      ) >
+                        Number(
+                          order.total
+                        ) && (
+                        <p className="mt-1 text-[9px] text-zinc-400 line-through">
+                          قبل المكافأة:{" "}
+                          {formatPrice(
+                            order.originalTotal
+                          )}
+                        </p>
                       )}
-                    </select>
+                    </div>
+                  </div>
 
-                    {updatingId ===
-                      order.id && (
-                      <div className="flex items-center justify-center rounded-xl bg-white px-4">
-                        <Loader2
-                          size={17}
-                          className="animate-spin"
+                  {/* ACTIONS */}
+
+                  <div className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500">
+                      {status ===
+                      "delivered" ? (
+                        <CheckCircle2
+                          size={16}
+                          className="text-[#16a34a]"
                         />
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      disabled={
-                        deletingId === order.id
-                      }
-                      onClick={() =>
-                        handleDelete(order.id)
-                      }
-                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-xs font-black text-red-500 transition-all hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {deletingId ===
-                      order.id ? (
-                        <Loader2
-                          size={15}
-                          className="animate-spin"
+                      ) : status ===
+                        "cancelled" ? (
+                        <XCircle
+                          size={16}
+                          className="text-red-500"
                         />
                       ) : (
-                        <Trash2 size={15} />
+                        <Truck
+                          size={16}
+                          className="text-zinc-500"
+                        />
                       )}
 
-                      حذف الطلب
-                    </button>
+                      الدفع عند الاستلام
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <select
+                        value={
+                          status
+                        }
+                        disabled={
+                          updatingId ===
+                          order.id
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          handleStatusChange(
+                            order.id,
+                            event.target
+                              .value
+                          )
+                        }
+                        className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-xs font-black outline-none focus:border-[#16a34a]"
+                      >
+                        {ORDER_STATUSES.map(
+                          (
+                            item
+                          ) => (
+                            <option
+                              key={
+                                item.value
+                              }
+                              value={
+                                item.value
+                              }
+                            >
+                              {
+                                item.label
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
+
+                      {updatingId ===
+                        order.id && (
+                        <div className="flex items-center justify-center rounded-xl bg-white px-4">
+                          <Loader2
+                            size={
+                              17
+                            }
+                            className="animate-spin"
+                          />
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        disabled={
+                          deletingId ===
+                          order.id
+                        }
+                        onClick={() =>
+                          handleDelete(
+                            order.id
+                          )
+                        }
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-xs font-black text-red-500 transition-all hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {deletingId ===
+                        order.id ? (
+                          <Loader2
+                            size={
+                              15
+                            }
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <Trash2
+                            size={
+                              15
+                            }
+                          />
+                        )}
+
+                        حذف الطلب
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </article>
-            );
-          })}
+                </article>
+              );
+            }
+          )}
         </div>
       )}
     </div>

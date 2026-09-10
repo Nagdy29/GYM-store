@@ -1,5 +1,10 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import {
+  useState,
+} from "react";
+
+import {
+  Link,
+} from "react-router-dom";
 
 import {
   ArrowLeft,
@@ -13,38 +18,44 @@ import {
 } from "lucide-react";
 
 function OrderSuccess() {
-  const [copied, setCopied] =
-    useState(false);
+  const [
+    copied,
+    setCopied,
+  ] = useState(false);
 
   let order = null;
 
   try {
-    order = JSON.parse(
-      localStorage.getItem(
-        "hiraql-last-order"
-      )
-    );
+    order =
+      JSON.parse(
+        localStorage.getItem(
+          "hiraql-last-order"
+        )
+      );
   } catch {
     order = null;
   }
 
-  const copyOrderId = async () => {
-    if (!order?.id) return;
+  const copyOrderId =
+    async () => {
+      if (!order?.id) {
+        return;
+      }
 
-    try {
-      await navigator.clipboard.writeText(
-        order.id
-      );
+      try {
+        await navigator.clipboard.writeText(
+          order.id
+        );
 
-      setCopied(true);
+        setCopied(true);
 
-      setTimeout(() => {
+        setTimeout(() => {
+          setCopied(false);
+        }, 2000);
+      } catch {
         setCopied(false);
-      }, 2000);
-    } catch {
-      setCopied(false);
-    }
-  };
+      }
+    };
 
   const orderDate =
     order?.createdAt
@@ -63,21 +74,15 @@ function OrderSuccess() {
   return (
     <div className="min-h-screen overflow-hidden bg-zinc-50">
 
-      {/* =====================================================
-          TOP SUCCESS HEADER
-      ====================================================== */}
+      {/* TOP SUCCESS HEADER */}
 
       <section className="relative overflow-hidden bg-black px-4 py-16 text-white sm:px-6 sm:py-20 lg:px-8">
-
-        {/* BACKGROUND EFFECT */}
 
         <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-[#39ff14]/10 blur-3xl" />
 
         <div className="absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-[#39ff14]/5 blur-3xl" />
 
         <div className="relative mx-auto max-w-3xl text-center">
-
-          {/* ICON */}
 
           <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#39ff14] text-black shadow-[0_0_60px_rgba(57,255,20,0.2)] sm:h-28 sm:w-28">
             <CheckCircle2
@@ -107,15 +112,9 @@ function OrderSuccess() {
         </div>
       </section>
 
-      {/* =====================================================
-          CONTENT
-      ====================================================== */}
-
       <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
 
-        {/* =====================================================
-            THANK YOU MESSAGE
-        ====================================================== */}
+        {/* THANK YOU */}
 
         <section className="mb-5 overflow-hidden rounded-3xl border border-[#39ff14]/20 bg-white shadow-sm">
 
@@ -142,6 +141,7 @@ function OrderSuccess() {
             </p>
 
             <div className="mx-auto mt-5 max-w-2xl rounded-2xl border border-zinc-100 bg-zinc-50 p-4">
+
               <p className="text-xs font-black text-zinc-800">
                 📞 تابع تليفونك
               </p>
@@ -151,14 +151,13 @@ function OrderSuccess() {
                 الطلب والتأكد من بيانات التوصيل قبل
                 بدء التجهيز.
               </p>
+
             </div>
 
           </div>
         </section>
 
-        {/* =====================================================
-            ORDER NUMBER
-        ====================================================== */}
+        {/* ORDER NUMBER */}
 
         {order?.id && (
           <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
@@ -166,19 +165,26 @@ function OrderSuccess() {
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
               <div>
+
                 <p className="text-xs font-bold text-zinc-400">
                   رقم الطلب
                 </p>
 
                 <h2 className="mt-1 break-all text-2xl font-black tracking-wide sm:text-3xl">
-                  {order.id}
+                  {
+                    order.id
+                  }
                 </h2>
 
                 {orderDate && (
                   <p className="mt-2 text-xs text-zinc-400">
-                    تاريخ الطلب: {orderDate}
+                    تاريخ الطلب:{" "}
+                    {
+                      orderDate
+                    }
                   </p>
                 )}
+
               </div>
 
               <button
@@ -188,6 +194,7 @@ function OrderSuccess() {
                 }
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-zinc-200 px-5 text-sm font-black transition-all duration-300 hover:border-black hover:bg-black hover:text-white"
               >
+
                 {copied ? (
                   <>
                     <Check size={17} />
@@ -199,16 +206,14 @@ function OrderSuccess() {
                     نسخ رقم الطلب
                   </>
                 )}
+
               </button>
 
             </div>
-
           </section>
         )}
 
-        {/* =====================================================
-            STATUS
-        ====================================================== */}
+        {/* STATUS */}
 
         <section className="mt-5 rounded-3xl border border-zinc-200 bg-white p-5 sm:p-7">
 
@@ -217,8 +222,6 @@ function OrderSuccess() {
           </h2>
 
           <div className="mt-7 grid grid-cols-3 gap-2 sm:gap-5">
-
-            {/* STEP 1 */}
 
             <div className="text-center">
 
@@ -239,8 +242,6 @@ function OrderSuccess() {
 
             </div>
 
-            {/* STEP 2 */}
-
             <div className="text-center">
 
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-black text-[#39ff14] sm:h-14 sm:w-14">
@@ -256,8 +257,6 @@ function OrderSuccess() {
               </p>
 
             </div>
-
-            {/* STEP 3 */}
 
             <div className="text-center">
 
@@ -277,8 +276,6 @@ function OrderSuccess() {
 
           </div>
 
-          {/* PROGRESS */}
-
           <div className="mt-6 flex items-center px-6 sm:px-10">
             <div className="h-1 flex-1 rounded-full bg-[#39ff14]" />
             <div className="h-1 flex-1 rounded-full bg-zinc-200" />
@@ -286,20 +283,17 @@ function OrderSuccess() {
 
         </section>
 
-        {/* =====================================================
-            ORDER SUMMARY
-        ====================================================== */}
+        {/* SUMMARY */}
 
         {order && (
           <section className="mt-5 grid gap-5 lg:grid-cols-[1fr_300px]">
-
-            {/* ITEMS */}
 
             <div className="rounded-3xl border border-zinc-200 bg-white p-5 sm:p-7">
 
               <div className="flex items-center justify-between">
 
                 <div>
+
                   <h2 className="text-xl font-black">
                     تفاصيل الطلب
                   </h2>
@@ -307,12 +301,14 @@ function OrderSuccess() {
                   <p className="mt-1 text-xs text-zinc-400">
                     المنتجات المطلوبة
                   </p>
+
                 </div>
 
                 <ShoppingBag
                   size={22}
                   className="text-zinc-300"
                 />
+
               </div>
 
               <div className="mt-6 space-y-4">
@@ -325,15 +321,21 @@ function OrderSuccess() {
                     >
 
                       <img
-                        src={item.image}
-                        alt={item.name}
+                        src={
+                          item.image
+                        }
+                        alt={
+                          item.name
+                        }
                         className="h-20 w-20 shrink-0 rounded-xl object-cover sm:h-24 sm:w-24"
                       />
 
                       <div className="min-w-0 flex-1">
 
                         <h3 className="line-clamp-2 text-sm font-black sm:text-base">
-                          {item.name}
+                          {
+                            item.name
+                          }
                         </h3>
 
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -341,14 +343,18 @@ function OrderSuccess() {
                           {item.size && (
                             <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-zinc-500">
                               المقاس:{" "}
-                              {item.size}
+                              {
+                                item.size
+                              }
                             </span>
                           )}
 
                           {item.color && (
                             <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-bold text-zinc-500">
                               اللون:{" "}
-                              {item.color}
+                              {
+                                item.color
+                              }
                             </span>
                           )}
 
@@ -358,7 +364,9 @@ function OrderSuccess() {
 
                           <span className="text-xs font-bold text-zinc-400">
                             الكمية:{" "}
-                            {item.quantity}
+                            {
+                              item.quantity
+                            }
                           </span>
 
                           <span className="text-sm font-black">
@@ -383,6 +391,7 @@ function OrderSuccess() {
                 )}
 
               </div>
+
             </div>
 
             {/* TOTAL */}
@@ -398,6 +407,7 @@ function OrderSuccess() {
               <div className="space-y-4 text-sm">
 
                 <div className="flex items-center justify-between gap-4">
+
                   <span className="text-zinc-500">
                     المنتجات
                   </span>
@@ -411,29 +421,59 @@ function OrderSuccess() {
                     )}{" "}
                     جنيه
                   </span>
+
                 </div>
 
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-zinc-500">
-                    الشحن
-                  </span>
+                {order.shippingGovernorate && (
+                  <div className="flex items-center justify-between gap-4">
 
-                  <span className="font-black">
-                    {Number(
-                      order.shipping ||
-                        0
-                    ) === 0
-                      ? "مجاني"
-                      : `${Number(
-                          order.shipping ||
-                            0
-                        ).toLocaleString(
-                          "ar-EG"
-                        )} جنيه`}
-                  </span>
-                </div>
+                    <span className="text-zinc-500">
+                      الشحن —{" "}
+                      {
+                        order.shippingGovernorate
+                      }
+                    </span>
 
-                {/* SECRET DISCOUNT */}
+                    <span className="font-black">
+                      {Number(
+                        order.shipping ||
+                          0
+                      ) === 0
+                        ? "مجاني"
+                        : `${Number(
+                            order.shipping ||
+                              0
+                          ).toLocaleString(
+                            "ar-EG"
+                          )} جنيه`}
+                    </span>
+
+                  </div>
+                )}
+
+                {!order.shippingGovernorate && (
+                  <div className="flex items-center justify-between gap-4">
+
+                    <span className="text-zinc-500">
+                      الشحن
+                    </span>
+
+                    <span className="font-black">
+                      {Number(
+                        order.shipping ||
+                          0
+                      ) === 0
+                        ? "مجاني"
+                        : `${Number(
+                            order.shipping ||
+                              0
+                          ).toLocaleString(
+                            "ar-EG"
+                          )} جنيه`}
+                    </span>
+
+                  </div>
+                )}
 
                 {Number(
                   order.discount ||
@@ -515,9 +555,7 @@ function OrderSuccess() {
           </section>
         )}
 
-        {/* =====================================================
-            CUSTOMER INFO
-        ====================================================== */}
+        {/* CUSTOMER */}
 
         {order?.customer && (
           <section className="mt-5 rounded-3xl border border-zinc-200 bg-white p-5 sm:p-7">
@@ -529,18 +567,17 @@ function OrderSuccess() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
 
               <div className="rounded-2xl bg-zinc-50 p-4">
-
                 <p className="text-xs text-zinc-400">
                   الاسم
                 </p>
 
                 <p className="mt-1 text-sm font-black">
                   {
-                    order.customer
+                    order
+                      .customer
                       .name
                   }
                 </p>
-
               </div>
 
               <div className="rounded-2xl bg-zinc-50 p-4">
@@ -554,8 +591,24 @@ function OrderSuccess() {
                   className="mt-1 text-right text-sm font-black"
                 >
                   {
-                    order.customer
+                    order
+                      .customer
                       .phone
+                  }
+                </p>
+
+              </div>
+
+              <div className="rounded-2xl bg-zinc-50 p-4 sm:col-span-2">
+
+                <p className="text-xs text-zinc-400">
+                  المحافظة
+                </p>
+
+                <p className="mt-1 text-sm font-black leading-7">
+                  {
+                    order.shippingGovernorate ||
+                    order.customer.governorate
                   }
                 </p>
 
@@ -568,11 +621,6 @@ function OrderSuccess() {
                 </p>
 
                 <p className="mt-1 text-sm font-black leading-7">
-                  {
-                    order.customer
-                      .governorate
-                  }{" "}
-                  -{" "}
                   {
                     order.customer
                       .address
@@ -604,9 +652,7 @@ function OrderSuccess() {
           </section>
         )}
 
-        {/* =====================================================
-            ACTIONS
-        ====================================================== */}
+        {/* ACTIONS */}
 
         <section className="mt-7">
 
@@ -617,7 +663,6 @@ function OrderSuccess() {
               className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl bg-black px-7 font-black text-white transition-all duration-300 hover:-translate-y-1 hover:bg-zinc-800"
             >
               <ShoppingBag size={18} />
-
               مواصلة التسوق
             </Link>
 
@@ -626,17 +671,12 @@ function OrderSuccess() {
               className="inline-flex h-14 items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-7 font-black transition-all duration-300 hover:-translate-y-1 hover:border-black"
             >
               <Home size={18} />
-
               الرئيسية
             </Link>
 
           </div>
 
         </section>
-
-        {/* =====================================================
-            FOOT NOTE
-        ====================================================== */}
 
         <div className="mt-8 text-center">
 

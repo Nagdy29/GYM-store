@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Gift,
+  LoaderCircle,
   LockKeyhole,
   MapPin,
   Phone,
@@ -29,35 +30,54 @@ import {
 
 import {
   getPendingSecretClaims,
-  markSecretClaimAsUsed,
 } from "../firebase/secretChallenges";
 
-function normalizeEgyptianPhone(value) {
+import {
+  getShippingRates,
+} from "../firebase/shipping";
+
+function normalizeEgyptianPhone(
+  value
+) {
   return String(value || "")
-    .replace(/[٠-٩]/g, (digit) =>
-      String(
-        "٠١٢٣٤٥٦٧٨٩".indexOf(
-          digit
+    .replace(
+      /[٠-٩]/g,
+      (digit) =>
+        String(
+          "٠١٢٣٤٥٦٧٨٩".indexOf(
+            digit
+          )
         )
-      )
     )
-    .replace(/\D/g, "");
+    .replace(
+      /\D/g,
+      ""
+    );
 }
 
-function isValidEgyptianPhone(phone) {
+function isValidEgyptianPhone(
+  phone
+) {
   return /^01(0|1|2|5)\d{8}$/.test(
     phone
   );
 }
 
-function formatCurrency(value) {
-  return Number(value || 0).toLocaleString(
+function formatCurrency(
+  value
+) {
+  return Number(
+    value || 0
+  ).toLocaleString(
     "ar-EG"
   );
 }
 
-function getRewardLabel(claim) {
-  const reward = claim?.reward;
+function getRewardLabel(
+  claim
+) {
+  const reward =
+    claim?.reward;
 
   if (!reward) {
     return "مكافأة";
@@ -95,31 +115,43 @@ function calculateSecretDiscount(
     return 0;
   }
 
-  const reward = claim.reward;
+  const reward =
+    claim.reward;
+
   const numericSubtotal =
     Number(subtotal) || 0;
 
   switch (reward.type) {
     case "percentage": {
       const percentage =
-        Number(reward.value) || 0;
+        Number(
+          reward.value
+        ) || 0;
 
       const discount =
         numericSubtotal *
         (percentage / 100);
 
       return Math.min(
-        Math.max(discount, 0),
+        Math.max(
+          discount,
+          0
+        ),
         numericSubtotal
       );
     }
 
     case "amount": {
       const amount =
-        Number(reward.value) || 0;
+        Number(
+          reward.value
+        ) || 0;
 
       return Math.min(
-        Math.max(amount, 0),
+        Math.max(
+          amount,
+          0
+        ),
         numericSubtotal
       );
     }
@@ -130,13 +162,12 @@ function calculateSecretDiscount(
 }
 
 function Checkout() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const {
     cartItems,
     subtotal,
-    shipping,
-    total,
     clearCart,
   } = useCart();
 
@@ -152,17 +183,43 @@ function Checkout() {
   const [payment, setPayment] =
     useState("cod");
 
-  const [phoneError, setPhoneError] =
-    useState("");
+  const [
+    phoneError,
+    setPhoneError,
+  ] = useState("");
 
-  const [submitError, setSubmitError] =
-    useState("");
+  const [
+    submitError,
+    setSubmitError,
+  ] = useState("");
 
-  const [submitting, setSubmitting] =
-    useState(false);
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
 
-  const [secretClaim, setSecretClaim] =
-    useState(null);
+  /*
+   * SHIPPING
+   */
+
+  const [
+    shippingRates,
+    setShippingRates,
+  ] = useState([]);
+
+  const [
+    loadingShipping,
+    setLoadingShipping,
+  ] = useState(true);
+
+  /*
+   * SECRET CLAIM
+   */
+
+  const [
+    secretClaim,
+    setSecretClaim,
+  ] = useState(null);
 
   const [
     loadingSecretClaim,
@@ -170,54 +227,116 @@ function Checkout() {
   ] = useState(true);
 
   /*
-  ==================================================
-  LOAD SECRET REWARD
-  ==================================================
-  */
+   * ==================================================
+   * LOAD SHIPPING
+   * ==================================================
+   */
 
   useEffect(() => {
     let mounted = true;
 
-    const loadSecretReward = async () => {
-      try {
-        setLoadingSecretClaim(true);
+    const loadShipping =
+      async () => {
+        try {
+          setLoadingShipping(
+            true
+          );
 
-        const claims =
-          await getPendingSecretClaims();
+          const rates =
+            await getShippingRates();
 
-        if (!mounted) {
-          return;
+          if (!mounted) {
+            return;
+          }
+
+          setShippingRates(
+            Array.isArray(rates)
+              ? rates.filter(
+                  (item) =>
+                    item.active !==
+                    false
+                )
+              : []
+          );
+        } catch (error) {
+          console.error(
+            "Load shipping rates error:",
+            error
+          );
+
+          if (mounted) {
+            setShippingRates(
+              []
+            );
+          }
+        } finally {
+          if (mounted) {
+            setLoadingShipping(
+              false
+            );
+          }
         }
+      };
 
-        /*
-         * ناخد أول مكافأة pending فقط.
-         * المكافأة دي مرتبطة بالجهاز من خلال
-         * secretChallenges helper.
-         */
+    loadShipping();
 
-        const pendingClaim =
-          Array.isArray(claims)
-            ? claims[0] || null
-            : null;
-
-        setSecretClaim(
-          pendingClaim
-        );
-      } catch (error) {
-        console.error(
-          "Load secret claim error:",
-          error
-        );
-
-        if (mounted) {
-          setSecretClaim(null);
-        }
-      } finally {
-        if (mounted) {
-          setLoadingSecretClaim(false);
-        }
-      }
+    return () => {
+      mounted = false;
     };
+  }, []);
+
+  /*
+   * ==================================================
+   * LOAD SECRET REWARD
+   * ==================================================
+   */
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadSecretReward =
+      async () => {
+        try {
+          setLoadingSecretClaim(
+            true
+          );
+
+          const claims =
+            await getPendingSecretClaims();
+
+          if (!mounted) {
+            return;
+          }
+
+          const pendingClaim =
+            Array.isArray(
+              claims
+            )
+              ? claims[0] || null
+              : null;
+
+          setSecretClaim(
+            pendingClaim
+          );
+        } catch (error) {
+          console.error(
+            "Load secret claim error:",
+            error
+          );
+
+          if (mounted) {
+            setSecretClaim(
+              null
+            );
+          }
+        } finally {
+          if (mounted) {
+            setLoadingSecretClaim(
+              false
+            );
+          }
+        }
+      };
 
     loadSecretReward();
 
@@ -227,23 +346,48 @@ function Checkout() {
   }, []);
 
   /*
-  ==================================================
-  TOTALS
-  ==================================================
-  */
+   * ==================================================
+   * CURRENT SHIPPING RATE
+   * ==================================================
+   */
+
+  const selectedShipping =
+    useMemo(() => {
+      if (
+        !form.governorate
+      ) {
+        return null;
+      }
+
+      return (
+        shippingRates.find(
+          (rate) =>
+            rate.name ===
+            form.governorate
+        ) || null
+      );
+    }, [
+      form.governorate,
+      shippingRates,
+    ]);
+
+  /*
+   * ==================================================
+   * TOTALS
+   * ==================================================
+   */
 
   const calculatedTotals =
     useMemo(() => {
       const safeSubtotal =
         Number(subtotal) || 0;
 
-      const safeShipping =
-        Number(shipping) || 0;
-
-      const safeOriginalTotal =
-        Number(total) ||
-        safeSubtotal +
-          safeShipping;
+      const regularShipping =
+        selectedShipping
+          ? Number(
+              selectedShipping.shippingPrice
+            ) || 0
+          : 0;
 
       const discount =
         calculateSecretDiscount(
@@ -258,47 +402,44 @@ function Checkout() {
       const finalShipping =
         isFreeShipping
           ? 0
-          : safeShipping;
+          : regularShipping;
 
-      /*
-       * الخصم يتطبق على المنتجات.
-       */
-      const finalTotal = Math.max(
-        0,
-        safeSubtotal -
-          discount +
-          finalShipping
-      );
+      const finalTotal =
+        Math.max(
+          0,
+          safeSubtotal -
+            discount +
+            finalShipping
+        );
 
       return {
         subtotal:
           safeSubtotal,
 
-        originalShipping:
-          safeShipping,
+        regularShipping,
 
         shipping:
           finalShipping,
 
-        originalTotal:
-          safeOriginalTotal,
-
         discount,
 
         finalTotal,
+
+        originalTotal:
+          safeSubtotal +
+          regularShipping,
       };
     }, [
       subtotal,
-      shipping,
-      total,
+      selectedShipping,
       secretClaim,
     ]);
 
   /*
-  ==================================================
-  FORM CHANGE
-  ==================================================
-  */
+   * ==================================================
+   * FORM CHANGE
+   * ==================================================
+   */
 
   const handleChange = (
     event
@@ -308,7 +449,9 @@ function Checkout() {
       value,
     } = event.target;
 
-    if (name === "phone") {
+    if (
+      name === "phone"
+    ) {
       const normalized =
         normalizeEgyptianPhone(
           value
@@ -327,7 +470,8 @@ function Checkout() {
       }
 
       if (
-        normalized.length >= 3 &&
+        normalized.length >=
+          3 &&
         !/^01(0|1|2|5)/.test(
           normalized
         )
@@ -340,7 +484,8 @@ function Checkout() {
       }
 
       if (
-        normalized.length === 11 &&
+        normalized.length ===
+          11 &&
         !isValidEgyptianPhone(
           normalized
         )
@@ -353,7 +498,8 @@ function Checkout() {
       }
 
       if (
-        normalized.length < 11
+        normalized.length <
+        11
       ) {
         setPhoneError(
           "رقم الموبايل لازم يكون 11 رقم."
@@ -372,386 +518,505 @@ function Checkout() {
         [name]: value,
       })
     );
+
+    if (
+      name === "governorate"
+    ) {
+      setSubmitError("");
+    }
   };
 
   /*
-  ==================================================
-  PHONE BLUR
-  ==================================================
-  */
+   * ==================================================
+   * PHONE BLUR
+   * ==================================================
+   */
 
-  const handlePhoneBlur = () => {
-    const phone =
-      normalizeEgyptianPhone(
-        form.phone
-      );
-
-    if (!phone) {
-      setPhoneError(
-        "رقم الموبايل مطلوب."
-      );
-      return;
-    }
-
-    if (
-      !isValidEgyptianPhone(
-        phone
-      )
-    ) {
-      setPhoneError(
-        "رقم الموبايل المصري غير صحيح. لازم يكون 11 رقم ويبدأ بـ 010 أو 011 أو 012 أو 015."
-      );
-
-      return;
-    }
-
-    setPhoneError("");
-  };
-
-  /*
-  ==================================================
-  SUBMIT ORDER
-  ==================================================
-  */
-
-  const handleSubmit = async (
-    event
-  ) => {
-    event.preventDefault();
-
-    setSubmitError("");
-
-    const phone =
-      normalizeEgyptianPhone(
-        form.phone
-      );
-
-    if (
-      !isValidEgyptianPhone(
-        phone
-      )
-    ) {
-      setPhoneError(
-        "رقم الموبايل المصري غير صحيح. لازم يكون 11 رقم ويبدأ بـ 010 أو 011 أو 012 أو 015."
-      );
-
-      return;
-    }
-
-    if (
-      cartItems.length === 0
-    ) {
-      return;
-    }
-
-    /*
-     * نعمل Refresh للمكافأة قبل إنشاء الطلب
-     * عشان لو المكافأة اتغيرت في الجهاز
-     * يكون الـ checkout على آخر حالة.
-     */
-
-    try {
-      setSubmitting(true);
-
-      let activeClaim =
-        secretClaim;
-
-      try {
-        const pendingClaims =
-          await getPendingSecretClaims();
-
-        if (
-          Array.isArray(
-            pendingClaims
-          )
-        ) {
-          activeClaim =
-            pendingClaims[0] ||
-            null;
-        }
-      } catch (claimRefreshError) {
-        console.error(
-          "Secret claim refresh error:",
-          claimRefreshError
+  const handlePhoneBlur =
+    () => {
+      const phone =
+        normalizeEgyptianPhone(
+          form.phone
         );
+
+      if (!phone) {
+        setPhoneError(
+          "رقم الموبايل مطلوب."
+        );
+
+        return;
       }
 
-      /*
-       * إعادة حساب المكافأة من جديد قبل الحفظ.
-       */
-
-      const safeSubtotal =
-        Number(subtotal) || 0;
-
-      const safeShipping =
-        Number(shipping) || 0;
-
-      const secretDiscount =
-        calculateSecretDiscount(
-          activeClaim,
-          safeSubtotal
+      if (
+        !isValidEgyptianPhone(
+          phone
+        )
+      ) {
+        setPhoneError(
+          "رقم الموبايل المصري غير صحيح. لازم يكون 11 رقم ويبدأ بـ 010 أو 011 أو 012 أو 015."
         );
 
-      const freeShipping =
-        activeClaim?.reward?.type ===
-        "freeShipping";
+        return;
+      }
 
-      const finalShipping =
-        freeShipping
-          ? 0
-          : safeShipping;
+      setPhoneError("");
+    };
 
-      const finalTotal = Math.max(
-        0,
-        safeSubtotal -
-          secretDiscount +
-          finalShipping
-      );
+  /*
+   * ==================================================
+   * SUBMIT ORDER
+   * ==================================================
+   */
 
-      const orderNumber =
-        `HRQL-${Date.now()}`;
+  const handleSubmit =
+    async (event) => {
+      event.preventDefault();
 
-      /*
-       * المنتجات اللي هتتحفظ في الطلب.
-       */
+      setSubmitError("");
 
-      const orderItems =
-        cartItems.map(
-          (item) => ({
-            id: item.id,
+      const phone =
+        normalizeEgyptianPhone(
+          form.phone
+        );
 
-            name: item.name,
+      if (
+        !isValidEgyptianPhone(
+          phone
+        )
+      ) {
+        setPhoneError(
+          "رقم الموبايل المصري غير صحيح. لازم يكون 11 رقم ويبدأ بـ 010 أو 011 أو 012 أو 015."
+        );
 
-            price:
-              Number(
-                item.price
-              ) || 0,
+        return;
+      }
 
-            image:
-              item.image || "",
+      if (
+        cartItems.length ===
+        0
+      ) {
+        return;
+      }
 
-            size:
-              item.size || null,
+      if (
+        !form.governorate
+      ) {
+        setSubmitError(
+          "اختار المحافظة الأول عشان نحدد تكلفة الشحن."
+        );
 
-            color:
-              item.color || null,
+        return;
+      }
 
-            quantity:
-              Number(
-                item.quantity
-              ) || 1,
+      if (
+        !selectedShipping
+      ) {
+        setSubmitError(
+          "المحافظة المختارة مش متاحة للشحن حاليًا."
+        );
+
+        return;
+      }
+
+      try {
+        setSubmitting(true);
+
+        /*
+         * ==================================================
+         * REFRESH SECRET CLAIM
+         * ==================================================
+         */
+
+        let activeClaim =
+          secretClaim;
+
+        try {
+          const pendingClaims =
+            await getPendingSecretClaims();
+
+          if (
+            Array.isArray(
+              pendingClaims
+            )
+          ) {
+            activeClaim =
+              pendingClaims[0] ||
+              null;
+          }
+        } catch (
+          claimRefreshError
+        ) {
+          console.error(
+            "Secret claim refresh error:",
+            claimRefreshError
+          );
+        }
+
+        /*
+         * ==================================================
+         * REFRESH SHIPPING
+         * ==================================================
+         */
+
+        let latestShippingRates =
+          shippingRates;
+
+        try {
+          latestShippingRates =
+            await getShippingRates();
+        } catch (
+          shippingRefreshError
+        ) {
+          console.error(
+            "Shipping refresh error:",
+            shippingRefreshError
+          );
+        }
+
+        const latestShipping =
+          latestShippingRates.find(
+            (rate) =>
+              rate.name ===
+                form.governorate &&
+              rate.active !==
+                false
+          );
+
+        if (!latestShipping) {
+          setSubmitError(
+            "المحافظة دي مبقتش متاحة للشحن. اختار محافظة تانية."
+          );
+
+          return;
+        }
+
+        /*
+         * ==================================================
+         * FINAL CALCULATION
+         * ==================================================
+         */
+
+        const safeSubtotal =
+          Number(subtotal) || 0;
+
+        const regularShipping =
+          Number(
+            latestShipping.shippingPrice
+          ) || 0;
+
+        const secretDiscount =
+          calculateSecretDiscount(
+            activeClaim,
+            safeSubtotal
+          );
+
+        const freeShipping =
+          activeClaim?.reward
+            ?.type ===
+          "freeShipping";
+
+        const finalShipping =
+          freeShipping
+            ? 0
+            : regularShipping;
+
+        const finalTotal =
+          Math.max(
+            0,
+            safeSubtotal -
+              secretDiscount +
+              finalShipping
+          );
+
+        const orderNumber =
+          `HRQL-${Date.now()}`;
+
+        /*
+         * ==================================================
+         * ORDER ITEMS
+         * ==================================================
+         */
+
+        const orderItems =
+          cartItems.map(
+            (item) => ({
+              id:
+                item.id || "",
+
+              name:
+                item.name || "",
+
+              price:
+                Number(
+                  item.price
+                ) || 0,
+
+              image:
+                item.image || "",
+
+              size:
+                item.size ||
+                null,
+
+              color:
+                item.color ||
+                null,
+
+              quantity:
+                Number(
+                  item.quantity
+                ) || 1,
+            })
+          );
+
+        /*
+         * ==================================================
+         * SECRET REWARD SNAPSHOT
+         * ==================================================
+         */
+
+        const secretReward =
+          activeClaim
+            ? {
+                claimId:
+                  activeClaim.id ||
+                  "",
+
+                challengeId:
+                  activeClaim.challengeId ||
+                  "",
+
+                challengeTitle:
+                  activeClaim.challengeTitle ||
+                  "",
+
+                couponCode:
+                  activeClaim.couponCode ||
+                  "",
+
+                rewardType:
+                  activeClaim.reward
+                    ?.type ||
+                  "",
+
+                rewardValue:
+                  activeClaim.reward
+                    ?.value ??
+                  null,
+
+                rewardProductId:
+                  activeClaim.reward
+                    ?.productId ||
+                  "",
+
+                rewardProductName:
+                  activeClaim.reward
+                    ?.productName ||
+                  "",
+
+                /*
+                 * القيمة الفعلية اللي اتخصمت
+                 * من الطلب.
+                 */
+
+                discount:
+                  Number(
+                    secretDiscount
+                  ) || 0,
+
+                freeShipping:
+                  Boolean(
+                    freeShipping
+                  ),
+
+                /*
+                 * هيتأكد نهائيًا داخل
+                 * Firebase Transaction.
+                 */
+
+                used: true,
+              }
+            : null;
+
+        /*
+         * ==================================================
+         * CREATE ORDER
+         * ==================================================
+         *
+         * مهم:
+         * addOrderToFirebase دلوقتي بيعمل
+         * Transaction لو فيه secretReward.
+         *
+         * يعني:
+         * Order + Used Claim
+         * بيتسجلوا مع بعض.
+         */
+
+        const order = {
+          orderNumber,
+
+          customer: {
+            ...form,
+            phone,
+          },
+
+          shippingGovernorate:
+            latestShipping.name,
+
+          payment,
+
+          items:
+            orderItems,
+
+          subtotal:
+            safeSubtotal,
+
+          shipping:
+            finalShipping,
+
+          shippingBeforeReward:
+            regularShipping,
+
+          discount:
+            Number(
+              secretDiscount
+            ) || 0,
+
+          total:
+            finalTotal,
+
+          originalTotal:
+            safeSubtotal +
+            regularShipping,
+
+          secretReward,
+
+          status:
+            "pending",
+        };
+
+        const savedOrder =
+          await addOrderToFirebase(
+            order
+          );
+
+        /*
+         * ==================================================
+         * LAST ORDER
+         * ==================================================
+         */
+
+        localStorage.setItem(
+          "hiraql-last-order",
+          JSON.stringify({
+            ...order,
+
+            id:
+              savedOrder.id,
+
+            shippingGovernorate:
+              latestShipping.name,
+
+            shippingBeforeReward:
+              regularShipping,
+
+            secretCoupon:
+              activeClaim?.couponCode ||
+              "",
+
+            finalTotal,
+
+            secretReward,
           })
         );
 
-      /*
-       * بيانات المكافأة.
-       *
-       * بنحفظها داخل الـ Order عشان الأدمن يعرف
-       * إن الطلب استخدم مكافأة من المفتاح الخفي.
-       */
-
-      const secretReward =
-        activeClaim
-          ? {
-              claimId:
-                activeClaim.id ||
-                "",
-
-              challengeId:
-                activeClaim.challengeId ||
-                "",
-
-              challengeTitle:
-                activeClaim.challengeTitle ||
-                "",
-
-              couponCode:
-                activeClaim.couponCode ||
-                "",
-
-              rewardType:
-                activeClaim.reward?.type ||
-                "",
-
-              rewardValue:
-                activeClaim.reward?.value ||
-                null,
-
-              rewardProductId:
-                activeClaim.reward?.productId ||
-                "",
-
-              rewardProductName:
-                activeClaim.reward?.productName ||
-                "",
-
-              discount:
-                Number(
-                  secretDiscount
-                ) || 0,
-
-              freeShipping:
-                Boolean(
-                  freeShipping
-                ),
-
-              status:
-                "used",
-
-              usedAt:
-                new Date().toISOString(),
-            }
-          : null;
-
-      const order = {
-        orderNumber,
-
-        customer: {
-          ...form,
-          phone,
-        },
-
-        payment,
-
-        items:
-          orderItems,
-
-        subtotal:
-          safeSubtotal,
-
         /*
-         * الشحن النهائي بعد المكافأة.
+         * ==================================================
+         * CLEAR CART
+         * ==================================================
          */
-        shipping:
-          finalShipping,
 
-        /*
-         * خصم المفتاح الخفي.
-         */
-        discount:
-          Number(
-            secretDiscount
-          ) || 0,
+        clearCart();
 
-        /*
-         * الإجمالي الحقيقي اللي العميل
-         * المفروض يدفعه.
-         */
-        total:
-          finalTotal,
-
-        /*
-         * بنحتفظ بالإجمالي قبل الخصم
-         * للمتابعة والإحصائيات.
-         */
-        originalTotal:
-          safeSubtotal +
-          safeShipping,
-
-        secretReward,
-
-        status:
-          "pending",
-      };
-
-      /*
-       * SAVE ORDER TO FIREBASE
-       */
-
-      const savedOrder =
-        await addOrderToFirebase(
-          order
+        navigate(
+          "/order-success",
+          {
+            replace: true,
+          }
+        );
+      } catch (error) {
+        console.error(
+          "Checkout Firebase Error:",
+          error
         );
 
-      /*
-       * بعد نجاح الطلب فقط:
-       * نحول claim من pending إلى used.
-       */
+        if (
+          error?.code ===
+          "SECRET_CLAIM_ALREADY_USED"
+        ) {
+          setSubmitError(
+            "المكافأة دي اتستخدمت بالفعل في طلب سابق، ومينفعش تستخدمها مرة تانية."
+          );
 
-      if (
-        activeClaim?.id
-      ) {
-        try {
-          await markSecretClaimAsUsed(
-            activeClaim.id,
-            savedOrder.id
-          );
-        } catch (claimError) {
-          /*
-           * الطلب نفسه نجح.
-           * لو تسجيل الـ claim كـ used فشل،
-           * منسيبش العميل يخسر الطلب.
-           *
-           * لكن بنسجل الخطأ عشان نراجعه.
-           */
-          console.error(
-            "Mark secret claim as used error:",
-            claimError
-          );
+          setSecretClaim(null);
+
+          return;
         }
+
+        if (
+          error?.code ===
+          "SECRET_CLAIM_NOT_FOUND"
+        ) {
+          setSubmitError(
+            "المكافأة دي مبقتش موجودة. ارجع للمفتاح الخفي وحاول تحصل على مكافأة جديدة."
+          );
+
+          setSecretClaim(null);
+
+          return;
+        }
+
+        if (
+          error?.code ===
+          "SECRET_CLAIM_NOT_PENDING"
+        ) {
+          setSubmitError(
+            "المكافأة دي مش متاحة للاستخدام حاليًا."
+          );
+
+          setSecretClaim(null);
+
+          return;
+        }
+
+        if (
+          error?.code ===
+          "SECRET_CLAIM_CODE_MISMATCH"
+        ) {
+          setSubmitError(
+            "حصل تعارض في كود المكافأة. حاول تحديث الصفحة وإعادة المحاولة."
+          );
+
+          return;
+        }
+
+        setSubmitError(
+          "حصل خطأ أثناء تسجيل الطلب. اتأكد من الإنترنت وحاول مرة تانية."
+        );
+      } finally {
+        setSubmitting(false);
       }
-
-      /*
-       * SAVE LAST ORDER LOCALLY
-       *
-       * لصفحة نجاح الطلب فقط.
-       */
-
-      localStorage.setItem(
-        "hiraql-last-order",
-        JSON.stringify({
-          ...order,
-
-          id:
-            savedOrder.id,
-
-          secretCoupon:
-            activeClaim?.couponCode ||
-            "",
-
-          finalTotal:
-            finalTotal,
-        })
-      );
-
-      /*
-       * CLEAR CART
-       */
-
-      clearCart();
-
-      /*
-       * GO TO SUCCESS
-       */
-
-      navigate(
-        "/order-success",
-        {
-          replace: true,
-        }
-      );
-    } catch (error) {
-      console.error(
-        "Checkout Firebase Error:",
-        error
-      );
-
-      setSubmitError(
-        "حصل خطأ أثناء تسجيل الطلب. اتأكد من الإنترنت وحاول مرة تانية."
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    };
 
   /*
-  ==================================================
-  EMPTY CART
-  ==================================================
-  */
+   * ==================================================
+   * EMPTY CART
+   * ==================================================
+   */
 
   if (
-    cartItems.length === 0
+    cartItems.length ===
+    0
   ) {
     return (
       <div
@@ -759,7 +1024,9 @@ function Checkout() {
         className="flex min-h-[70vh] flex-col items-center justify-center bg-white px-4 text-center"
       >
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#39ff14]/15 text-[#16a34a]">
-          <CheckCircle2 size={50} />
+          <CheckCircle2
+            size={50}
+          />
         </div>
 
         <h1 className="mt-6 text-2xl font-black sm:text-3xl">
@@ -776,7 +1043,9 @@ function Checkout() {
           className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-black px-6 py-4 font-black text-white transition-all hover:-translate-y-0.5"
         >
           ابدأ التسوق
-          <ArrowLeft size={18} />
+          <ArrowLeft
+            size={18}
+          />
         </Link>
       </div>
     );
@@ -800,7 +1069,8 @@ function Checkout() {
           </h1>
 
           <p className="mt-2 text-sm text-zinc-400">
-            اكتب بيانات التوصيل واختار طريقة الدفع.
+            اكتب بيانات التوصيل واختار المحافظة
+            عشان نحسب الشحن تلقائيًا.
           </p>
         </div>
       </section>
@@ -809,7 +1079,9 @@ function Checkout() {
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
         <form
-          onSubmit={handleSubmit}
+          onSubmit={
+            handleSubmit
+          }
           className="grid gap-7 lg:grid-cols-[1fr_390px]"
         >
           {/* CUSTOMER INFO */}
@@ -830,14 +1102,18 @@ function Checkout() {
 
               <div className="sm:col-span-2">
                 <label className="mb-2 flex items-center gap-2 text-sm font-black">
-                  <User size={16} />
+                  <User
+                    size={16}
+                  />
                   الاسم بالكامل
                 </label>
 
                 <input
                   required
                   name="name"
-                  value={form.name}
+                  value={
+                    form.name
+                  }
                   onChange={
                     handleChange
                   }
@@ -852,7 +1128,9 @@ function Checkout() {
 
               <div>
                 <label className="mb-2 flex items-center gap-2 text-sm font-black">
-                  <Phone size={16} />
+                  <Phone
+                    size={16}
+                  />
                   رقم الهاتف
                 </label>
 
@@ -860,7 +1138,9 @@ function Checkout() {
                   required
                   type="tel"
                   name="phone"
-                  value={form.phone}
+                  value={
+                    form.phone
+                  }
                   onChange={
                     handleChange
                   }
@@ -893,11 +1173,13 @@ function Checkout() {
 
               <div>
                 <label className="mb-2 flex items-center gap-2 text-sm font-black">
-                  <MapPin size={16} />
+                  <MapPin
+                    size={16}
+                  />
                   المحافظة
                 </label>
 
-                <input
+                <select
                   required
                   name="governorate"
                   value={
@@ -906,17 +1188,72 @@ function Checkout() {
                   onChange={
                     handleChange
                   }
-                  placeholder="المحافظة"
-                  autoComplete="address-level1"
-                  className="h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none transition-all placeholder:text-zinc-400 focus:border-black focus:bg-white"
-                />
+                  disabled={
+                    loadingShipping ||
+                    shippingRates.length ===
+                      0
+                  }
+                  className="h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-bold outline-none transition-all focus:border-black focus:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">
+                    {loadingShipping
+                      ? "جاري تحميل المحافظات..."
+                      : shippingRates.length ===
+                        0
+                      ? "لا توجد محافظات متاحة"
+                      : "اختار المحافظة"}
+                  </option>
+
+                  {shippingRates.map(
+                    (rate) => (
+                      <option
+                        key={
+                          rate.id
+                        }
+                        value={
+                          rate.name
+                        }
+                      >
+                        {
+                          rate.name
+                        }{" "}
+                        —{" "}
+                        {formatCurrency(
+                          rate.shippingPrice
+                        )}{" "}
+                        جنيه شحن
+                      </option>
+                    )
+                  )}
+                </select>
+
+                {selectedShipping &&
+                  form.governorate && (
+                    <div className="mt-2 flex items-center justify-between rounded-xl bg-zinc-50 px-3 py-2">
+                      <span className="text-[10px] text-zinc-400">
+                        سعر الشحن
+                      </span>
+
+                      <span className="text-xs font-black text-[#16a34a]">
+                        {secretClaim?.reward
+                          ?.type ===
+                        "freeShipping"
+                          ? "مجاني 🎉"
+                          : `${formatCurrency(
+                              selectedShipping.shippingPrice
+                            )} جنيه`}
+                      </span>
+                    </div>
+                  )}
               </div>
 
               {/* ADDRESS */}
 
               <div className="sm:col-span-2">
                 <label className="mb-2 flex items-center gap-2 text-sm font-black">
-                  <MapPin size={16} />
+                  <MapPin
+                    size={16}
+                  />
                   العنوان بالتفصيل
                 </label>
 
@@ -950,7 +1287,9 @@ function Checkout() {
 
                 <textarea
                   name="notes"
-                  value={form.notes}
+                  value={
+                    form.notes
+                  }
                   onChange={
                     handleChange
                   }
@@ -967,7 +1306,9 @@ function Checkout() {
 
             <div>
               <div className="flex items-center gap-2">
-                <WalletCards size={20} />
+                <WalletCards
+                  size={20}
+                />
 
                 <h2 className="text-xl font-black">
                   طريقة الدفع
@@ -980,25 +1321,27 @@ function Checkout() {
             </div>
 
             <div className="mt-5 grid gap-3">
-              <label className="flex cursor-pointer items-start gap-4 rounded-2xl border-2 border-black bg-zinc-50 p-4 transition-all">
+              <label className="flex cursor-pointer items-start gap-4 rounded-2xl border-2 border-black bg-zinc-50 p-4">
                 <input
                   type="radio"
                   name="payment"
                   value="cod"
                   checked={
-                    payment === "cod"
+                    payment ===
+                    "cod"
                   }
                   onChange={(
                     event
                   ) =>
                     setPayment(
-                      event.target.value
+                      event.target
+                        .value
                     )
                   }
                   className="mt-1 h-4 w-4 accent-[#39ff14]"
                 />
 
-                <div className="min-w-0">
+                <div>
                   <p className="font-black">
                     الدفع عند الاستلام
                   </p>
@@ -1012,13 +1355,11 @@ function Checkout() {
               <label className="flex cursor-not-allowed items-start gap-4 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 opacity-50">
                 <input
                   type="radio"
-                  name="payment"
-                  value="online"
                   disabled
                   className="mt-1 h-4 w-4"
                 />
 
-                <div className="min-w-0">
+                <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-black">
                       الدفع الإلكتروني
@@ -1036,7 +1377,7 @@ function Checkout() {
               </label>
             </div>
 
-            {/* SECRET REWARD INFO */}
+            {/* SECRET */}
 
             {secretClaim && (
               <div className="mt-7 overflow-hidden rounded-2xl border border-[#39ff14]/20 bg-[#39ff14]/5">
@@ -1045,10 +1386,12 @@ function Checkout() {
                 <div className="p-5">
                   <div className="flex items-start gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#39ff14] text-black">
-                      <Sparkles size={19} />
+                      <Sparkles
+                        size={19}
+                      />
                     </div>
 
-                    <div className="min-w-0">
+                    <div>
                       <p className="text-xs font-black text-[#16a34a]">
                         مكافأة المفتاح الخفي
                       </p>
@@ -1059,9 +1402,23 @@ function Checkout() {
                         )}
                       </p>
 
+                      {secretClaim.reward
+                        ?.type ===
+                        "percentage" ||
+                      secretClaim.reward
+                        ?.type ===
+                        "amount" ? (
+                        <p className="mt-1 text-xs font-black text-[#16a34a]">
+                          الخصم المتوقع:{" "}
+                          {formatCurrency(
+                            calculatedTotals.discount
+                          )}{" "}
+                          جنيه
+                        </p>
+                      ) : null}
+
                       <p className="mt-2 text-[11px] leading-6 text-zinc-500">
-                        المكافأة هتتطبق على الطلب ده
-                        تلقائيًا.
+                        المكافأة هتتطبق تلقائيًا عند تأكيد الطلب.
                       </p>
                     </div>
                   </div>
@@ -1069,7 +1426,7 @@ function Checkout() {
               </div>
             )}
 
-            {/* FIREBASE ERROR */}
+            {/* ERROR */}
 
             {submitError && (
               <div className="mt-6 rounded-2xl border border-red-100 bg-red-50 p-4">
@@ -1080,7 +1437,7 @@ function Checkout() {
             )}
           </section>
 
-          {/* ORDER SUMMARY */}
+          {/* SUMMARY */}
 
           <aside>
             <div className="rounded-3xl border border-zinc-200 bg-white p-5 sm:p-6 lg:sticky lg:top-28">
@@ -1107,14 +1464,18 @@ function Checkout() {
 
                       <div className="min-w-0 flex-1">
                         <p className="line-clamp-2 text-xs font-black">
-                          {item.name}
+                          {
+                            item.name
+                          }
                         </p>
 
                         <div className="mt-1 flex flex-wrap gap-1">
                           {item.size && (
                             <span className="text-[9px] text-zinc-400">
                               مقاس{" "}
-                              {item.size}
+                              {
+                                item.size
+                              }
                             </span>
                           )}
 
@@ -1154,9 +1515,9 @@ function Checkout() {
 
               <div className="my-6 h-px bg-zinc-100" />
 
-              {/* TOTALS */}
-
               <div className="space-y-4 text-sm">
+                {/* PRODUCTS */}
+
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-zinc-500">
                     المنتجات
@@ -1170,20 +1531,35 @@ function Checkout() {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-zinc-500">
-                    الشحن
-                  </span>
+                {/* SHIPPING */}
 
-                  <span className="font-black">
-                    {calculatedTotals.shipping ===
-                    0
-                      ? "مجاني"
-                      : `${formatCurrency(
-                          calculatedTotals.shipping
-                        )} جنيه`}
-                  </span>
-                </div>
+                {form.governorate && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-zinc-500">
+                      الشحن —{" "}
+                      {
+                        form.governorate
+                      }
+                    </span>
+
+                    <span className="font-black">
+                      {calculatedTotals.shipping ===
+                      0
+                        ? "مجاني"
+                        : `${formatCurrency(
+                            calculatedTotals.shipping
+                          )} جنيه`}
+                    </span>
+                  </div>
+                )}
+
+                {!form.governorate && (
+                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-3">
+                    <p className="text-xs font-bold leading-6 text-zinc-500">
+                      اختار المحافظة عشان يظهر سعر الشحن.
+                    </p>
+                  </div>
+                )}
 
                 {/* SECRET DISCOUNT */}
 
@@ -1230,11 +1606,45 @@ function Checkout() {
                   </div>
                 )}
 
-                {secretClaim?.reward?.type ===
+                {/* FREE SHIPPING */}
+
+                {secretClaim?.reward
+                  ?.type ===
                   "freeShipping" && (
                   <div className="rounded-2xl border border-[#39ff14]/20 bg-[#39ff14]/5 px-4 py-3">
                     <p className="text-xs font-black text-[#16a34a]">
                       🎉 تم تفعيل الشحن المجاني
+                    </p>
+
+                    {secretClaim?.couponCode && (
+                      <p className="mt-1 text-[10px] font-bold text-zinc-500">
+                        كود المكافأة:{" "}
+                        {
+                          secretClaim.couponCode
+                        }
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* GIFT */}
+
+                {(secretClaim?.reward
+                  ?.type ===
+                  "giftTshirt" ||
+                  secretClaim?.reward
+                    ?.type ===
+                    "giftProduct") && (
+                  <div className="rounded-2xl border border-[#39ff14]/20 bg-[#39ff14]/5 px-4 py-3">
+                    <p className="text-xs font-black text-[#16a34a]">
+                      🎁 المكافأة:{" "}
+                      {getRewardLabel(
+                        secretClaim
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-[10px] leading-5 text-zinc-500">
+                      المكافأة هتتسجل مع الطلب عشان تظهر للأدمن أثناء التجهيز.
                     </p>
                   </div>
                 )}
@@ -1266,17 +1676,16 @@ function Checkout() {
                 </span>
               </div>
 
-              {/* OLD TOTAL */}
-
-              {calculatedTotals.discount >
-                0 && (
-                <p className="mt-2 text-right text-xs text-zinc-400 line-through">
-                  {formatCurrency(
-                    calculatedTotals.originalTotal
-                  )}{" "}
-                  جنيه
-                </p>
-              )}
+              {form.governorate &&
+                calculatedTotals.originalTotal !==
+                  calculatedTotals.finalTotal && (
+                  <p className="mt-2 text-right text-xs text-zinc-400 line-through">
+                    {formatCurrency(
+                      calculatedTotals.originalTotal
+                    )}{" "}
+                    جنيه
+                  </p>
+                )}
 
               <button
                 type="submit"
@@ -1284,15 +1693,32 @@ function Checkout() {
                   submitting ||
                   Boolean(
                     phoneError
-                  )
+                  ) ||
+                  loadingShipping ||
+                  shippingRates.length ===
+                    0 ||
+                  !form.governorate
                 }
                 className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#39ff14] font-black text-black transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_15px_35px_rgba(57,255,20,0.18)] disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-50"
               >
-                <LockKeyhole size={18} />
+                {submitting ? (
+                  <>
+                    <LoaderCircle
+                      size={18}
+                      className="animate-spin"
+                    />
 
-                {submitting
-                  ? "جاري تسجيل الطلب..."
-                  : "تأكيد الطلب"}
+                    جاري تسجيل الطلب...
+                  </>
+                ) : (
+                  <>
+                    <LockKeyhole
+                      size={18}
+                    />
+
+                    تأكيد الطلب
+                  </>
+                )}
               </button>
 
               <Link
@@ -1326,4 +1752,4 @@ function Checkout() {
   );
 }
 
-export default Checkout
+export default Checkout;

@@ -23,6 +23,7 @@ import {
   Volume2,
   X,
   Dumbbell,
+  Truck,
 } from "lucide-react";
 
 import {
@@ -186,9 +187,7 @@ SOUND STATE
 
   const enableSound =
     useCallback(() => {
-      setSoundEnabled(
-        true
-      );
+      setSoundEnabled(true);
 
       soundEnabledRef.current =
         true;
@@ -249,6 +248,11 @@ LINKS
       icon: ClipboardList,
     },
     {
+      name: "الشحن والمحافظات",
+      path: "/admin/shipping",
+      icon: Truck,
+    },
+    {
       name: "التقييمات",
       path: "/admin/reviews",
       icon: MessageSquare,
@@ -298,11 +302,6 @@ REALTIME ORDERS
            * ==============================================
            * أول مرة الصفحة تعمل فيها
            * ==============================================
-           *
-           * لا نطلع صوت لكل الطلبات القديمة.
-           *
-           * لكن لو فيه طلبات جديدة غير مقروءة
-           * محفوظة في Firebase، نظهر آخر واحد منها.
            */
 
           if (
@@ -348,11 +347,6 @@ REALTIME ORDERS
                     0
                 ),
               });
-
-              /*
-               * الصوت لا يعمل تلقائيًا
-               * إلا بعد تفاعل المستخدم مع الصفحة.
-               */
             }
 
             return;
@@ -390,12 +384,6 @@ REALTIME ORDERS
                 1
             ].order;
 
-          /*
-           * لو نفس الطلب اتبعت
-           * أكثر من مرة من listener
-           * منعرضوش مرتين.
-           */
-
           setNotification({
             orderId:
               newOrder.id,
@@ -429,14 +417,6 @@ REALTIME ORDERS
               notificationTimeoutRef.current
             );
           }
-
-          /*
-           * اختفاء بصري فقط.
-           *
-           * لا نعدل Firebase هنا.
-           * الطلب يفضل Unread لحد ما الأدمن
-           * يضغط "تمت المشاهدة" أو "فتح الطلب".
-           */
 
           notificationTimeoutRef.current =
             setTimeout(() => {
@@ -500,13 +480,6 @@ MARK AS SEEN
           true
         );
 
-        /*
-         * هنا بنحفظ إن الإشعار اتشاف
-         * في Firebase.
-         *
-         * الطلب نفسه لا يتم حذفه.
-         */
-
         await markOrderNotificationAsSeen(
           notification.orderId
         );
@@ -536,13 +509,6 @@ OPEN ORDERS
     async () => {
       const orderId =
         notification?.orderId;
-
-      /*
-       * نعلّم الإشعار كمقروء
-       * قبل الذهاب لصفحة الطلبات.
-       *
-       * الطلب نفسه يفضل موجود.
-       */
 
       if (orderId) {
         try {

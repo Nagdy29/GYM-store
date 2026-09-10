@@ -30,6 +30,7 @@ import AdminOrders from "./admin/AdminOrders";
 import AdminReviews from "./admin/AdminReviews";
 import AdminSecretChallenge from "./admin/AdminSecretChallenge";
 import AdminSettings from "./admin/AdminSettings";
+import AdminShipping from "./admin/AdminShipping";
 
 import SecretChallenge from "./pages/SecretChallenge";
 
@@ -46,7 +47,11 @@ function App() {
             STORE
         ================================================== */}
 
-        <Route element={<MainLayout />}>
+        <Route
+          element={
+            <MainLayout />
+          }
+        >
 
           <Route
             path="/"
@@ -55,17 +60,23 @@ function App() {
 
           <Route
             path="/products"
-            element={<Products />}
+            element={
+              <Products />
+            }
           />
 
           <Route
             path="/categories"
-            element={<Categories />}
+            element={
+              <Categories />
+            }
           />
 
           <Route
             path="/products/:id"
-            element={<ProductDetails />}
+            element={
+              <ProductDetails />
+            }
           />
 
           <Route
@@ -75,17 +86,23 @@ function App() {
 
           <Route
             path="/checkout"
-            element={<Checkout />}
+            element={
+              <Checkout />
+            }
           />
 
           <Route
             path="/order-success"
-            element={<OrderSuccess />}
+            element={
+              <OrderSuccess />
+            }
           />
 
           <Route
             path="/secret"
-            element={<SecretChallenge />}
+            element={
+              <SecretChallenge />
+            }
           />
 
           <Route
@@ -95,8 +112,11 @@ function App() {
 
           <Route
             path="/contact"
-            element={<Contact />}
+            element={
+              <Contact />
+            }
           />
+
         </Route>
 
         {/* ==================================================
@@ -105,7 +125,9 @@ function App() {
 
         <Route
           path="/admin/login"
-          element={<AdminLogin />}
+          element={
+            <AdminLogin />
+          }
         />
 
         {/* ==================================================
@@ -117,6 +139,7 @@ function App() {
             <AdminProtectedRoute />
           }
         >
+
           <Route
             element={
               <AdminLayout />
@@ -168,7 +191,7 @@ function App() {
               }
             />
 
-            {/* SECRET CHALLENGE */}
+            {/* SECRET */}
 
             <Route
               path="/admin/secret"
@@ -186,7 +209,17 @@ function App() {
               }
             />
 
+            {/* SHIPPING */}
+
+            <Route
+              path="/admin/shipping"
+              element={
+                <AdminShipping />
+              }
+            />
+
           </Route>
+
         </Route>
 
         {/* ==================================================
@@ -195,7 +228,9 @@ function App() {
 
         <Route
           path="*"
-          element={<NotFound />}
+          element={
+            <NotFound />
+          }
         />
 
       </Routes>
