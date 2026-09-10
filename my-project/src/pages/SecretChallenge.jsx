@@ -6,7 +6,6 @@ import {
 } from "react";
 
 import {
-  ArrowLeft,
   CheckCircle2,
   Copy,
   Gift,
@@ -44,7 +43,6 @@ function getRewardLabel(challenge) {
 
   if (!reward) {
     return "جائزة";
-
   }
 
   switch (reward.type) {
@@ -64,6 +62,12 @@ function getRewardLabel(challenge) {
       return (
         reward.productName ||
         "منتج هدية"
+      );
+
+    case "custom":
+      return (
+        reward.customRewardText ||
+        "هدية مخصصة"
       );
 
     default:
@@ -96,6 +100,12 @@ function getRewardMessage(challenge) {
       return `أنت كسبت ${
         reward.productName ||
         "منتج هدية"
+      } مع الطلب.`;
+
+    case "custom":
+      return `أنت كسبت ${
+        reward.customRewardText ||
+        "هدية مخصصة"
       } مع الطلب.`;
 
     default:
@@ -154,12 +164,6 @@ function SecretChallenge() {
     setHintIndex,
   ] = useState(0);
 
-  /*
-  ==================================================
-  LOAD ACTIVE CHALLENGE
-  ==================================================
-  */
-
   const loadChallenge =
     useCallback(
       async () => {
@@ -190,10 +194,6 @@ function SecretChallenge() {
             setAlreadyClaimed(true);
             setClaim(existingClaim);
 
-            /*
-             * لو المكافأة لسه pending
-             * يبقى تعتبر نتيجة صحيحة محفوظة.
-             */
             if (
               existingClaim.status ===
               "pending"
@@ -225,12 +225,6 @@ function SecretChallenge() {
     loadChallenge();
   }, [loadChallenge]);
 
-  /*
-  ==================================================
-  SORT HINTS
-  ==================================================
-  */
-
   const hints = useMemo(() => {
     if (
       !Array.isArray(
@@ -254,12 +248,6 @@ function SecretChallenge() {
       0,
       hintIndex
     );
-
-  /*
-  ==================================================
-  SUBMIT ANSWER
-  ==================================================
-  */
 
   const handleSubmit =
     async (event) => {
@@ -318,7 +306,7 @@ function SecretChallenge() {
               "",
               "هرفق Screenshot للنتيجة على واتساب.",
               "",
-              "وأعرف إن لازم أعمل Order فعلي عشان أستفيد من الخصم.",
+              "وأعرف إن لازم أعمل Order فعلي عشان أستفيد من المكافأة.",
             ].join("\n");
 
           const whatsappUrl =
@@ -366,12 +354,6 @@ function SecretChallenge() {
       }
     };
 
-  /*
-  ==================================================
-  NEXT HINT
-  ==================================================
-  */
-
   const handleNextHint =
     () => {
       if (
@@ -387,12 +369,6 @@ function SecretChallenge() {
         );
       }
     };
-
-  /*
-  ==================================================
-  COPY COUPON
-  ==================================================
-  */
 
   const handleCopy =
     async () => {
@@ -419,12 +395,6 @@ function SecretChallenge() {
       }
     };
 
-  /*
-  ==================================================
-  WHATSAPP
-  ==================================================
-  */
-
   const openWhatsapp =
     () => {
       if (
@@ -448,7 +418,7 @@ function SecretChallenge() {
           "",
           "هرفق Screenshot للنتيجة.",
           "",
-          "وعرفت إن الخصم بيتفعل مع Order فعلي.",
+          "وعرفت إن المكافأة بتتربط مع Order فعلي.",
         ].join("\n");
 
       const url =
@@ -462,12 +432,6 @@ function SecretChallenge() {
         "noopener,noreferrer"
       );
     };
-
-  /*
-  ==================================================
-  LOADING
-  ==================================================
-  */
 
   if (loading) {
     return (
@@ -494,12 +458,6 @@ function SecretChallenge() {
       </div>
     );
   }
-
-  /*
-  ==================================================
-  NO ACTIVE CHALLENGE
-  ==================================================
-  */
 
   if (!challenge) {
     return (
@@ -538,12 +496,6 @@ function SecretChallenge() {
     );
   }
 
-  /*
-  ==================================================
-  SUCCESS STATE
-  ==================================================
-  */
-
   const isUsed =
     claim?.status === "used";
 
@@ -555,24 +507,16 @@ function SecretChallenge() {
       dir="rtl"
       className="min-h-screen overflow-hidden bg-[#050505] px-4 py-8 text-white sm:px-6 lg:px-8"
     >
-      {/* GLOW */}
-
       <div className="pointer-events-none fixed -right-40 -top-40 h-[26rem] w-[26rem] rounded-full bg-[#39ff14]/[0.06] blur-[130px]" />
 
       <div className="pointer-events-none fixed -bottom-40 -left-40 h-[26rem] w-[26rem] rounded-full bg-[#39ff14]/[0.05] blur-[130px]" />
 
       <main className="relative mx-auto max-w-5xl">
-
-        {/* ==================================================
-            HERO
-        ================================================== */}
-
         <section className="relative overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#0b0b0b] shadow-[0_25px_90px_rgba(0,0,0,0.45)]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(57,255,20,0.10),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(57,255,20,0.06),transparent_30%)]" />
 
           <div className="relative px-6 py-10 sm:px-10 sm:py-14">
             <div className="flex flex-col items-center text-center">
-
               <div className="inline-flex items-center gap-2 rounded-full border border-[#39ff14]/20 bg-[#39ff14]/[0.06] px-4 py-2">
                 <Sparkles
                   size={14}
@@ -604,8 +548,6 @@ function SecretChallenge() {
                 — الإجابة الصح تديك مكافأة
                 تستخدمها في طلبك.
               </p>
-
-              {/* HERO BADGES */}
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-4 py-2.5">
@@ -645,16 +587,11 @@ function SecretChallenge() {
           </div>
         )}
 
-        {/* ==================================================
-            ALREADY WON / SUCCESS
-        ================================================== */}
-
         {claim && (
           <section className="mt-7 overflow-hidden rounded-[2rem] border border-[#39ff14]/20 bg-[#0b0b0b] shadow-[0_20px_70px_rgba(57,255,20,0.06)]">
             <div className="h-1 bg-[#39ff14]" />
 
             <div className="p-6 sm:p-8 lg:p-9">
-
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#39ff14] text-black shadow-[0_0_30px_rgba(57,255,20,0.18)]">
                   {isUsed ? (
@@ -699,16 +636,13 @@ function SecretChallenge() {
                 </div>
               </div>
 
-              {/* REWARD */}
-
               <div className="mt-7 grid gap-4 md:grid-cols-2">
-
                 <div className="rounded-2xl border border-[#39ff14]/15 bg-[#39ff14]/[0.04] p-5">
                   <p className="text-[10px] font-black text-zinc-600">
                     الجائزة
                   </p>
 
-                  <p className="mt-2 text-xl font-black text-[#39ff14]">
+                  <p className="mt-2 break-words text-xl font-black text-[#39ff14]">
                     {getRewardLabel(
                       challenge
                     )}
@@ -727,10 +661,7 @@ function SecretChallenge() {
                     {claim.couponCode}
                   </code>
                 </div>
-
               </div>
-
-              {/* IMPORTANT */}
 
               {!isUsed && (
                 <div className="mt-5 rounded-2xl border border-yellow-500/20 bg-yellow-500/[0.05] p-5">
@@ -754,14 +685,12 @@ function SecretChallenge() {
                         من المكافأة.
                         حل المفتاح أو إرسال
                         Screenshot لوحده مش
-                        بيفعّل الخصم.
+                        بيفعّل المكافأة.
                       </p>
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* COPY */}
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <button
@@ -810,10 +739,6 @@ function SecretChallenge() {
           </section>
         )}
 
-        {/* ==================================================
-            ERROR
-        ================================================== */}
-
         {error && (
           <div
             className={`mt-6 flex items-start gap-3 rounded-2xl border p-4 ${
@@ -843,10 +768,6 @@ function SecretChallenge() {
             </span>
           </div>
         )}
-
-        {/* ==================================================
-            QUESTION
-        ================================================== */}
 
         {!alreadyClaimed && (
           <section className="mt-7 overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#0b0b0b]">
@@ -925,8 +846,6 @@ function SecretChallenge() {
                 </button>
               </form>
 
-              {/* HINTS */}
-
               {hints.length > 0 && (
                 <div className="mt-8 border-t border-white/[0.07] pt-7">
                   <div className="flex items-center justify-between gap-3">
@@ -1000,10 +919,6 @@ function SecretChallenge() {
           </section>
         )}
 
-        {/* ==================================================
-            BOTTOM CTA
-        ================================================== */}
-
         <section className="mt-7 rounded-[2rem] border border-white/[0.07] bg-white/[0.02] p-6 text-center sm:p-8">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#39ff14]/10 text-[#39ff14]">
             <Sparkles size={21} />
@@ -1031,8 +946,6 @@ function SecretChallenge() {
             </span>
           </div>
         </section>
-
-        {/* FOOTER */}
 
         <div className="pb-5 pt-7 text-center">
           <p className="text-[10px] font-bold tracking-wide text-zinc-800">

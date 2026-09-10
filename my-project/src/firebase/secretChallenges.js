@@ -14,31 +14,23 @@ import {
 
 import { db } from "./config";
 
-/*
-====================================================
-COLLECTIONS
-====================================================
-*/
+const COLLECTION_NAME =
+  "secretChallenges";
 
-const COLLECTION_NAME = "secretChallenges";
+const CLAIMS_COLLECTION =
+  "secretChallengeClaims";
 
-const CLAIMS_COLLECTION = "secretChallengeClaims";
+const challengesRef =
+  collection(
+    db,
+    COLLECTION_NAME
+  );
 
-const challengesRef = collection(
-  db,
-  COLLECTION_NAME
-);
-
-const claimsRef = collection(
-  db,
-  CLAIMS_COLLECTION
-);
-
-/*
-====================================================
-TEXT NORMALIZATION
-====================================================
-*/
+const claimsRef =
+  collection(
+    db,
+    CLAIMS_COLLECTION
+  );
 
 function normalizeAnswer(value) {
   return String(value ?? "")
@@ -47,13 +39,10 @@ function normalizeAnswer(value) {
     .replace(/\s+/g, " ");
 }
 
-/*
-====================================================
-BOOLEAN NORMALIZATION
-====================================================
-*/
-
-function normalizeBoolean(value, defaultValue = false) {
+function normalizeBoolean(
+  value,
+  defaultValue = false
+) {
   if (typeof value === "boolean") {
     return value;
   }
@@ -79,12 +68,6 @@ function normalizeBoolean(value, defaultValue = false) {
   return defaultValue;
 }
 
-/*
-====================================================
-YEAR NORMALIZATION
-====================================================
-*/
-
 function normalizeYear(value) {
   if (
     value === "" ||
@@ -103,76 +86,69 @@ function normalizeYear(value) {
   return year;
 }
 
-/*
-====================================================
-CHALLENGE CLEANER
-====================================================
-*/
+function cleanChallengeData(
+  data = {}
+) {
+  const question =
+    String(
+      data.question ?? ""
+    ).trim();
 
-function cleanChallengeData(data = {}) {
-  const question = String(
-    data.question ?? ""
-  ).trim();
+  const title =
+    String(
+      data.title ?? ""
+    ).trim();
 
-  const title = String(
-    data.title ?? ""
-  ).trim();
+  const description =
+    String(
+      data.description ?? ""
+    ).trim();
 
-  const description = String(
-    data.description ?? ""
-  ).trim();
+  const answer =
+    normalizeAnswer(
+      data.answer
+    );
 
-  const answer = normalizeAnswer(
-    data.answer
-  );
+  const year =
+    normalizeYear(
+      data.year
+    );
 
-  const year = normalizeYear(
-    data.year
-  );
+  const hints =
+    Array.isArray(
+      data.hints
+    )
+      ? data.hints
+          .map(
+            (hint, index) => {
+              if (
+                typeof hint ===
+                "string"
+              ) {
+                return {
+                  order:
+                    index + 1,
+                  text:
+                    hint.trim(),
+                };
+              }
 
-  const hints = Array.isArray(
-    data.hints
-  )
-    ? data.hints
-        .map(
-          (hint, index) => {
-            /*
-             * دعم شكلين:
-             *
-             * { order: 1, text: "..." }
-             *
-             * أو
-             *
-             * "النص"
-             */
-
-            if (
-              typeof hint ===
-              "string"
-            ) {
               return {
-                order: index + 1,
-                text: hint.trim(),
+                order: Number(
+                  hint?.order ||
+                    index + 1
+                ),
+                text: String(
+                  hint?.text ?? ""
+                ).trim(),
               };
             }
-
-            return {
-              order: Number(
-                hint?.order ||
-                  index + 1
-              ),
-
-              text: String(
-                hint?.text ?? ""
-              ).trim(),
-            };
-          }
-        )
-        .filter(
-          (hint) =>
-            hint.text
-        )
-    : [];
+          )
+          .filter(
+            (hint) =>
+              hint.text
+          )
+      : [];
 
   const rewardType =
     data.reward?.type ||
@@ -182,15 +158,24 @@ function cleanChallengeData(data = {}) {
     data.reward?.value ??
     "";
 
-  const productId = String(
-    data.reward?.productId ??
-      ""
-  ).trim();
+  const productId =
+    String(
+      data.reward?.productId ??
+        ""
+    ).trim();
 
-  const productName = String(
-    data.reward?.productName ??
-      ""
-  ).trim();
+  const productName =
+    String(
+      data.reward?.productName ??
+        ""
+    ).trim();
+
+  const customRewardText =
+    String(
+      data.reward
+        ?.customRewardText ??
+        ""
+    ).trim();
 
   const active =
     normalizeBoolean(
@@ -198,85 +183,50 @@ function cleanChallengeData(data = {}) {
       false
     );
 
-  const startAt = String(
-    data.startAt ?? ""
-  ).trim();
+  const startAt =
+    String(
+      data.startAt ?? ""
+    ).trim();
 
-  const endAt = String(
-    data.endAt ?? ""
-  ).trim();
+  const endAt =
+    String(
+      data.endAt ?? ""
+    ).trim();
 
   return {
-    /*
-     * BASIC
-     */
-
     title,
 
     description,
 
-    /*
-     * YEAR
-     */
-
     year,
-
-    /*
-     * MANUAL QUESTION
-     *
-     * أهم جزء:
-     * السؤال بيتحفظ هنا بشكل صريح.
-     */
 
     question,
 
-    /*
-     * ANSWER
-     */
-
     answer,
-
-    /*
-     * HINTS
-     */
 
     hints,
 
-    /*
-     * REWARD
-     */
-
     reward: {
-      type: rewardType,
+      type:
+        rewardType,
 
-      value: rewardValue,
+      value:
+        rewardValue,
 
       productId,
 
       productName,
+
+      customRewardText,
     },
 
-    /*
-     * STATUS
-     */
-
     active,
-
-    /*
-     * DATES
-     */
 
     startAt,
 
     endAt,
   };
 }
-
-/*
-====================================================
-SERIALIZE
-====================================================
-*/
 
 function serializeChallenge(
   id,
@@ -287,18 +237,9 @@ function serializeChallenge(
 
     ...data,
 
-    /*
-     * ضمان وجود السؤال حتى لو الداتا القديمة
-     * ناقصها الحقل.
-     */
-
     question: String(
       data.question ?? ""
     ).trim(),
-
-    /*
-     * ضمان السنة لو موجودة.
-     */
 
     year:
       data.year !==
@@ -308,20 +249,39 @@ function serializeChallenge(
         ? Number(data.year)
         : "",
 
-    /*
-     * ضمان إن active boolean.
-     */
+    reward: {
+      type:
+        data.reward?.type ||
+        "percentage",
+
+      value:
+        data.reward?.value ??
+        "",
+
+      productId:
+        String(
+          data.reward?.productId ??
+            ""
+        ).trim(),
+
+      productName:
+        String(
+          data.reward?.productName ??
+            ""
+        ).trim(),
+
+      customRewardText:
+        String(
+          data.reward
+            ?.customRewardText ??
+            ""
+        ).trim(),
+    },
 
     active:
       data.active === true,
   };
 }
-
-/*
-====================================================
-GET ALL CHALLENGES
-====================================================
-*/
 
 export async function getSecretChallenges() {
   try {
@@ -363,12 +323,6 @@ export async function getSecretChallenges() {
     );
   }
 }
-
-/*
-====================================================
-GET ACTIVE CHALLENGE
-====================================================
-*/
 
 export async function getActiveSecretChallenge() {
   const now = new Date();
@@ -455,12 +409,6 @@ export async function getActiveSecretChallenge() {
   );
 }
 
-/*
-====================================================
-GET BY ID
-====================================================
-*/
-
 export async function getSecretChallengeById(
   id
 ) {
@@ -490,12 +438,6 @@ export async function getSecretChallengeById(
   );
 }
 
-/*
-====================================================
-ADD
-====================================================
-*/
-
 export async function addSecretChallenge(
   data
 ) {
@@ -503,11 +445,6 @@ export async function addSecretChallenge(
     cleanChallengeData(
       data
     );
-
-  /*
-   * حماية إضافية:
-   * مينفعش ننشئ تحدي بدون سؤال.
-   */
 
   if (!challenge.question) {
     throw new Error(
@@ -518,6 +455,17 @@ export async function addSecretChallenge(
   if (!challenge.answer) {
     throw new Error(
       "الإجابة الصحيحة غير موجودة."
+    );
+  }
+
+  if (
+    challenge.reward.type ===
+      "custom" &&
+    !challenge.reward
+      .customRewardText
+  ) {
+    throw new Error(
+      "الهدية المخصصة غير موجودة."
     );
   }
 
@@ -542,12 +490,6 @@ export async function addSecretChallenge(
   };
 }
 
-/*
-====================================================
-UPDATE
-====================================================
-*/
-
 export async function updateSecretChallenge(
   id,
   data
@@ -563,11 +505,6 @@ export async function updateSecretChallenge(
       data
     );
 
-  /*
-   * حماية إضافية:
-   * مينفعش التعديل يمسح السؤال بالغلط.
-   */
-
   if (!challenge.question) {
     throw new Error(
       "السؤال اليدوي غير موجود."
@@ -577,6 +514,17 @@ export async function updateSecretChallenge(
   if (!challenge.answer) {
     throw new Error(
       "الإجابة الصحيحة غير موجودة."
+    );
+  }
+
+  if (
+    challenge.reward.type ===
+      "custom" &&
+    !challenge.reward
+      .customRewardText
+  ) {
+    throw new Error(
+      "الهدية المخصصة غير موجودة."
     );
   }
 
@@ -604,12 +552,6 @@ export async function updateSecretChallenge(
   };
 }
 
-/*
-====================================================
-DELETE
-====================================================
-*/
-
 export async function deleteSecretChallenge(
   id
 ) {
@@ -627,12 +569,6 @@ export async function deleteSecretChallenge(
     )
   );
 }
-
-/*
-====================================================
-DEVICE ID
-====================================================
-*/
 
 const DEVICE_STORAGE_KEY =
   "hiraql_secret_device_id";
@@ -664,23 +600,11 @@ export function getSecretDeviceId() {
   }
 }
 
-/*
-====================================================
-LOCAL CLAIM KEY
-====================================================
-*/
-
 function getLocalClaimKey(
   challengeId
 ) {
   return `hiraql_secret_claim_${challengeId}`;
 }
-
-/*
-====================================================
-CHECK DEVICE CLAIM
-====================================================
-*/
 
 export async function getSecretChallengeClaim(
   challengeId
@@ -691,10 +615,6 @@ export async function getSecretChallengeClaim(
 
   const deviceId =
     getSecretDeviceId();
-
-  /*
-   * LOCAL FIRST
-   */
 
   try {
     const localData =
@@ -712,10 +632,6 @@ export async function getSecretChallengeClaim(
   } catch {
     // تجاهل
   }
-
-  /*
-   * FIREBASE
-   */
 
   try {
     const q = query(
@@ -773,12 +689,6 @@ export async function getSecretChallengeClaim(
     return null;
   }
 }
-
-/*
-====================================================
-CREATE CLAIM
-====================================================
-*/
 
 export async function createSecretChallengeClaim(
   challenge,
@@ -859,6 +769,9 @@ export async function createSecretChallengeClaim(
       challenge.reward || {
         type: "percentage",
         value: "",
+        productId: "",
+        productName: "",
+        customRewardText: "",
       },
 
     status: "pending",
@@ -873,10 +786,6 @@ export async function createSecretChallengeClaim(
     updatedAt:
       serverTimestamp(),
   };
-
-  /*
-   * CHECK أخير قبل الإنشاء
-   */
 
   const q = query(
     claimsRef,
@@ -948,12 +857,6 @@ export async function createSecretChallengeClaim(
   };
 }
 
-/*
-====================================================
-GET PENDING CLAIMS
-====================================================
-*/
-
 export async function getPendingSecretClaims() {
   const deviceId =
     getSecretDeviceId();
@@ -983,12 +886,6 @@ export async function getPendingSecretClaims() {
     })
   );
 }
-
-/*
-====================================================
-GET CLAIM BY COUPON CODE
-====================================================
-*/
 
 export async function getSecretClaimByCouponCode(
   couponCode
@@ -1031,20 +928,6 @@ export async function getSecretClaimByCouponCode(
     ...item.data(),
   };
 }
-
-/*
-====================================================
-MARK CLAIM AS USED
-====================================================
-
-دي ما زالت موجودة للتوافق مع أي مكان قديم
-في المشروع بيستدعيها.
-
-Checkout الجديد مش هيعتمد عليها
-لتأكيد الطلب؛ تأكيد الاستخدام هيتم
-داخل transaction مع إنشاء الطلب.
-====================================================
-*/
 
 export async function markSecretClaimAsUsed(
   claimId,

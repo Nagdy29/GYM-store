@@ -34,10 +34,13 @@ const EMPTY_FORM = {
   question: "",
   answer: "",
   hints: [""],
+
   rewardType: "percentage",
   rewardValue: "",
   productId: "",
   productName: "",
+  customRewardText: "",
+
   active: true,
   startAt: "",
   endAt: "",
@@ -70,6 +73,12 @@ function getRewardLabel(challenge) {
         "منتج هدية"
       );
 
+    case "custom":
+      return (
+        reward.customRewardText ||
+        "هدية مخصصة"
+      );
+
     default:
       return "جائزة";
   }
@@ -99,12 +108,6 @@ function AdminSecretChallenge() {
 
   const [form, setForm] =
     useState(EMPTY_FORM);
-
-  /*
-  ==================================================
-  LOAD
-  ==================================================
-  */
 
   const loadChallenges =
     useCallback(async () => {
@@ -138,12 +141,6 @@ function AdminSecretChallenge() {
     loadChallenges();
   }, [loadChallenges]);
 
-  /*
-  ==================================================
-  ACTIVE CHALLENGE
-  ==================================================
-  */
-
   const activeChallenge =
     useMemo(
       () =>
@@ -155,20 +152,12 @@ function AdminSecretChallenge() {
       [challenges]
     );
 
-  /*
-  ==================================================
-  RESET FORM
-  ==================================================
-  */
-
   const resetForm = () => {
     setForm({
       ...EMPTY_FORM,
-
       year: String(
         CURRENT_YEAR
       ),
-
       hints: [""],
     });
 
@@ -176,20 +165,12 @@ function AdminSecretChallenge() {
     setShowForm(false);
   };
 
-  /*
-  ==================================================
-  ADD FORM
-  ==================================================
-  */
-
   const openAdd = () => {
     setForm({
       ...EMPTY_FORM,
-
       year: String(
         CURRENT_YEAR
       ),
-
       hints: [""],
     });
 
@@ -197,12 +178,6 @@ function AdminSecretChallenge() {
     setError("");
     setShowForm(true);
   };
-
-  /*
-  ==================================================
-  EDIT FORM
-  ==================================================
-  */
 
   const openEdit = (
     challenge
@@ -280,6 +255,11 @@ function AdminSecretChallenge() {
         challenge.reward
           ?.productName || "",
 
+      customRewardText:
+        challenge.reward
+          ?.customRewardText ||
+        "",
+
       active:
         challenge.active ===
         true,
@@ -295,33 +275,19 @@ function AdminSecretChallenge() {
     setShowForm(true);
   };
 
-  /*
-  ==================================================
-  UPDATE FORM
-  ==================================================
-  */
-
   const updateForm = (
     key,
     value
   ) => {
     setForm((current) => ({
       ...current,
-
       [key]: value,
     }));
   };
 
-  /*
-  ==================================================
-  HINTS
-  ==================================================
-  */
-
   const addHint = () => {
     setForm((current) => ({
       ...current,
-
       hints: [
         ...current.hints,
         "",
@@ -341,7 +307,6 @@ function AdminSecretChallenge() {
 
       return {
         ...current,
-
         hints:
           next.length
             ? next
@@ -371,19 +336,9 @@ function AdminSecretChallenge() {
     }));
   };
 
-  /*
-  ==================================================
-  SUBMIT
-  ==================================================
-  */
-
   const handleSubmit =
     async (event) => {
       event.preventDefault();
-
-      /*
-       * TITLE
-       */
 
       if (
         !form.title.trim()
@@ -393,10 +348,6 @@ function AdminSecretChallenge() {
         );
         return;
       }
-
-      /*
-       * YEAR
-       */
 
       if (
         String(
@@ -425,10 +376,6 @@ function AdminSecretChallenge() {
         return;
       }
 
-      /*
-       * QUESTION
-       */
-
       const question =
         form.question.trim();
 
@@ -439,10 +386,6 @@ function AdminSecretChallenge() {
         return;
       }
 
-      /*
-       * ANSWER
-       */
-
       const answer =
         form.answer.trim();
 
@@ -452,10 +395,6 @@ function AdminSecretChallenge() {
         );
         return;
       }
-
-      /*
-       * HINTS
-       */
 
       const hints =
         form.hints
@@ -470,7 +409,6 @@ function AdminSecretChallenge() {
             (hint, index) => ({
               order:
                 index + 1,
-
               text: hint,
             })
           );
@@ -483,10 +421,6 @@ function AdminSecretChallenge() {
         );
         return;
       }
-
-      /*
-       * REWARD - PERCENTAGE
-       */
 
       if (
         form.rewardType ===
@@ -515,10 +449,6 @@ function AdminSecretChallenge() {
         return;
       }
 
-      /*
-       * REWARD - AMOUNT
-       */
-
       if (
         form.rewardType ===
           "amount" &&
@@ -533,10 +463,6 @@ function AdminSecretChallenge() {
         return;
       }
 
-      /*
-       * REWARD - PRODUCT
-       */
-
       if (
         form.rewardType ===
           "giftProduct" &&
@@ -548,15 +474,20 @@ function AdminSecretChallenge() {
         return;
       }
 
+      if (
+        form.rewardType ===
+          "custom" &&
+        !form.customRewardText.trim()
+      ) {
+        setError(
+          "اكتب الهدية المخصصة اللي العميل هيكسبها."
+        );
+        return;
+      }
+
       try {
         setSaving(true);
         setError("");
-
-        /*
-         * DATA
-         *
-         * السؤال والسنة بيتبعتوا صراحة.
-         */
 
         const data = {
           title:
@@ -586,6 +517,9 @@ function AdminSecretChallenge() {
 
             productName:
               form.productName.trim(),
+
+            customRewardText:
+              form.customRewardText.trim(),
           },
 
           active:
@@ -599,18 +533,7 @@ function AdminSecretChallenge() {
             form.endAt || "",
         };
 
-        /*
-        ==============================================
-        CREATE
-        ==============================================
-        */
-
         if (!editingId) {
-          /*
-           * لو الجديد فعال:
-           * نعطل كل التحديات القديمة.
-           */
-
           if (data.active) {
             const activeItems =
               challenges.filter(
@@ -651,8 +574,10 @@ function AdminSecretChallenge() {
                     item.reward || {
                       type:
                         "percentage",
-
                       value: "",
+                      productId: "",
+                      productName: "",
+                      customRewardText: "",
                     },
 
                   active:
@@ -673,20 +598,7 @@ function AdminSecretChallenge() {
           await addSecretChallenge(
             data
           );
-        }
-
-        /*
-        ==============================================
-        UPDATE
-        ==============================================
-        */
-
-        else {
-          /*
-           * لو التعديل هيخلي التحدي فعال:
-           * نعطل أي تحدي تاني.
-           */
-
+        } else {
           if (data.active) {
             const activeItems =
               challenges.filter(
@@ -729,8 +641,10 @@ function AdminSecretChallenge() {
                     item.reward || {
                       type:
                         "percentage",
-
                       value: "",
+                      productId: "",
+                      productName: "",
+                      customRewardText: "",
                     },
 
                   active:
@@ -754,15 +668,6 @@ function AdminSecretChallenge() {
           );
         }
 
-        /*
-        ==============================================
-        IMPORTANT
-        ==============================================
-
-        نعيد تحميل Firebase بالكامل بعد الحفظ
-        بدل الاعتماد على state قديم.
-        */
-
         await loadChallenges();
 
         resetForm();
@@ -780,12 +685,6 @@ function AdminSecretChallenge() {
         setSaving(false);
       }
     };
-
-  /*
-  ==================================================
-  DELETE
-  ==================================================
-  */
 
   const handleDelete =
     async (challenge) => {
@@ -832,12 +731,6 @@ function AdminSecretChallenge() {
       }
     };
 
-  /*
-  ==================================================
-  TOGGLE ACTIVE
-  ==================================================
-  */
-
   const toggleActive =
     async (challenge) => {
       try {
@@ -846,11 +739,6 @@ function AdminSecretChallenge() {
         const nextActive =
           challenge.active !==
           true;
-
-        /*
-         * لو هيفعل تحدي:
-         * نعطل أي تحدي تاني.
-         */
 
         if (nextActive) {
           const activeItems =
@@ -894,8 +782,10 @@ function AdminSecretChallenge() {
                   item.reward || {
                     type:
                       "percentage",
-
                     value: "",
+                    productId: "",
+                    productName: "",
+                    customRewardText: "",
                   },
 
                 active:
@@ -913,10 +803,6 @@ function AdminSecretChallenge() {
           }
         }
 
-        /*
-         * تحديث التحدي المطلوب.
-         */
-
         await updateSecretChallenge(
           challenge.id,
           {
@@ -931,11 +817,6 @@ function AdminSecretChallenge() {
             year:
               challenge.year ||
               CURRENT_YEAR,
-
-            /*
-             * أهم حاجة:
-             * نحافظ على السؤال.
-             */
 
             question:
               challenge.question ||
@@ -953,8 +834,10 @@ function AdminSecretChallenge() {
               challenge.reward || {
                 type:
                   "percentage",
-
                 value: "",
+                productId: "",
+                productName: "",
+                customRewardText: "",
               },
 
             active:
@@ -970,10 +853,6 @@ function AdminSecretChallenge() {
           }
         );
 
-        /*
-         * إعادة تحميل من Firebase.
-         */
-
         await loadChallenges();
       } catch (err) {
         console.error(
@@ -988,19 +867,11 @@ function AdminSecretChallenge() {
       }
     };
 
-  /*
-  ==================================================
-  UI
-  ==================================================
-  */
-
   return (
     <div
       dir="rtl"
       className="min-h-screen bg-zinc-50"
     >
-      {/* HEADER */}
-
       <div className="border-b border-zinc-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -1039,7 +910,6 @@ function AdminSecretChallenge() {
                 <RefreshCw
                   size={17}
                 />
-
                 تحديث
               </button>
 
@@ -1052,7 +922,6 @@ function AdminSecretChallenge() {
                   size={18}
                   className="text-[#39ff14]"
                 />
-
                 إنشاء تحدي
               </button>
             </div>
@@ -1061,8 +930,6 @@ function AdminSecretChallenge() {
       </div>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* ERROR */}
-
         {error && (
           <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="text-sm font-bold text-red-700">
@@ -1081,8 +948,6 @@ function AdminSecretChallenge() {
           </div>
         )}
 
-        {/* FORM */}
-
         {showForm && (
           <section className="mb-8 overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-5">
@@ -1094,7 +959,7 @@ function AdminSecretChallenge() {
                 </h2>
 
                 <p className="mt-1 text-xs text-zinc-500">
-                  اكتب أي سؤال من دماغك وحدد السنة بتاعته، وكل البيانات هتتخزن في Firebase.
+                  اكتب أي سؤال وحدد السنة والجائزة اللي أنت عايزها.
                 </p>
               </div>
 
@@ -1115,8 +980,6 @@ function AdminSecretChallenge() {
               }
               className="grid gap-6 p-6 lg:grid-cols-2"
             >
-              {/* TITLE */}
-
               <div>
                 <label className="mb-2 block text-sm font-black">
                   اسم التحدي
@@ -1138,14 +1001,11 @@ function AdminSecretChallenge() {
                 />
               </div>
 
-              {/* YEAR */}
-
               <div>
                 <label className="mb-2 flex items-center gap-2 text-sm font-black">
                   <CalendarDays
                     size={16}
                   />
-
                   سنة السؤال
                 </label>
 
@@ -1168,13 +1028,7 @@ function AdminSecretChallenge() {
                   className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 text-sm font-black outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                   dir="ltr"
                 />
-
-                <p className="mt-2 text-[10px] font-semibold text-zinc-400">
-                  حدد السنة اللي السؤال مرتبط بيها.
-                </p>
               </div>
-
-              {/* STATUS */}
 
               <div className="lg:col-span-2">
                 <label className="mb-2 block text-sm font-black">
@@ -1211,8 +1065,6 @@ function AdminSecretChallenge() {
                 </button>
               </div>
 
-              {/* DESCRIPTION */}
-
               <div className="lg:col-span-2">
                 <label className="mb-2 block text-sm font-black">
                   وصف التحدي
@@ -1234,8 +1086,6 @@ function AdminSecretChallenge() {
                   className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                 />
               </div>
-
-              {/* MANUAL QUESTION */}
 
               <div className="lg:col-span-2">
                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -1260,16 +1110,10 @@ function AdminSecretChallenge() {
                     )
                   }
                   rows={4}
-                  placeholder="مثال: مين اللاعب اللي كان لابس رقم 10 في موسم 2024؟"
+                  placeholder="اكتب السؤال اللي أنت عايزه..."
                   className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                 />
-
-                <p className="mt-2 text-[10px] font-semibold text-zinc-400">
-                  مفيش أسئلة جاهزة إجباري — اكتب السؤال اللي أنت عايزه بإيدك عادي.
-                </p>
               </div>
-
-              {/* ANSWER */}
 
               <div className="lg:col-span-2">
                 <label className="mb-2 block text-sm font-black">
@@ -1292,8 +1136,6 @@ function AdminSecretChallenge() {
                 />
               </div>
 
-              {/* HINTS */}
-
               <div className="lg:col-span-2">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -1314,7 +1156,6 @@ function AdminSecretChallenge() {
                     className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-black transition hover:border-black hover:bg-zinc-100"
                   >
                     <Plus size={15} />
-
                     إضافة هنت
                   </button>
                 </div>
@@ -1349,8 +1190,7 @@ function AdminSecretChallenge() {
                           }
                           rows={2}
                           placeholder={`الهنت رقم ${
-                            index +
-                            1
+                            index + 1
                           }...`}
                           className="min-h-[48px] flex-1 resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold outline-none transition focus:border-[#39ff14] focus:bg-white focus:ring-4 focus:ring-[#39ff14]/10"
                         />
@@ -1375,7 +1215,6 @@ function AdminSecretChallenge() {
               </div>
 
               {/* REWARD */}
-
               <div className="lg:col-span-2">
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-[#39ff14]">
@@ -1393,46 +1232,43 @@ function AdminSecretChallenge() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {[
                     {
                       value:
                         "percentage",
-
                       label:
                         "خصم نسبة %",
                     },
-
                     {
                       value:
                         "amount",
-
                       label:
                         "خصم مبلغ",
                     },
-
                     {
                       value:
                         "freeShipping",
-
                       label:
                         "شحن مجاني",
                     },
-
                     {
                       value:
                         "giftTshirt",
-
                       label:
                         "تيشيرت هدية",
                     },
-
                     {
                       value:
                         "giftProduct",
-
                       label:
                         "منتج هدية",
+                    },
+                    {
+                      value:
+                        "custom",
+                      label:
+                        "🎁 هدية من دماغي",
                     },
                   ].map(
                     (item) => (
@@ -1467,6 +1303,9 @@ function AdminSecretChallenge() {
                             : item.value ===
                               "amount"
                             ? "مثال: 100 جنيه"
+                            : item.value ===
+                              "custom"
+                            ? "اكتب أي هدية بنفسك"
                             : "جائزة مباشرة"}
                         </p>
                       </button>
@@ -1542,16 +1381,49 @@ function AdminSecretChallenge() {
                     />
                   </div>
                 )}
-              </div>
 
-              {/* DATES */}
+                {form.rewardType ===
+                  "custom" && (
+                  <div className="mt-4 rounded-2xl border border-[#39ff14]/20 bg-[#39ff14]/5 p-4">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Gift
+                        size={17}
+                        className="text-green-600"
+                      />
+
+                      <label className="text-xs font-black text-zinc-800">
+                        اكتب الهدية اللي في دماغك
+                      </label>
+                    </div>
+
+                    <textarea
+                      value={
+                        form.customRewardText
+                      }
+                      onChange={(event) =>
+                        updateForm(
+                          "customRewardText",
+                          event.target
+                            .value
+                        )
+                      }
+                      rows={3}
+                      placeholder="مثال: كاب HIRAQL هدية 🎁 أو شنطة جيم مجانية أو اشتراك أسبوع..."
+                      className="w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold outline-none transition focus:border-[#39ff14] focus:ring-4 focus:ring-[#39ff14]/10"
+                    />
+
+                    <p className="mt-2 text-[10px] font-semibold text-zinc-400">
+                      اكتب أي هدية أو مكافأة أنت عايزها، ومش لازم تكون من الاختيارات الجاهزة.
+                    </p>
+                  </div>
+                )}
+              </div>
 
               <div>
                 <label className="mb-2 flex items-center gap-2 text-sm font-black">
                   <CalendarDays
                     size={16}
                   />
-
                   يبدأ من
                 </label>
 
@@ -1577,7 +1449,6 @@ function AdminSecretChallenge() {
                   <CalendarDays
                     size={16}
                   />
-
                   ينتهي في
                 </label>
 
@@ -1597,8 +1468,6 @@ function AdminSecretChallenge() {
                   dir="ltr"
                 />
               </div>
-
-              {/* ACTIONS */}
 
               <div className="flex flex-col gap-3 border-t border-zinc-100 pt-6 sm:flex-row sm:justify-end lg:col-span-2">
                 <button
@@ -1624,7 +1493,6 @@ function AdminSecretChallenge() {
                         size={17}
                         className="animate-spin"
                       />
-
                       جاري الحفظ...
                     </>
                   ) : (
@@ -1633,7 +1501,6 @@ function AdminSecretChallenge() {
                         size={17}
                         className="text-[#39ff14]"
                       />
-
                       {editingId
                         ? "حفظ التعديل"
                         : "إنشاء التحدي"}
@@ -1645,8 +1512,6 @@ function AdminSecretChallenge() {
           </section>
         )}
 
-        {/* LOADING */}
-
         {loading ? (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map(
@@ -1656,9 +1521,7 @@ function AdminSecretChallenge() {
                   className="rounded-[2rem] border border-zinc-200 bg-white p-5"
                 >
                   <div className="h-8 w-2/3 animate-pulse rounded bg-zinc-200" />
-
                   <div className="mt-4 h-20 animate-pulse rounded-2xl bg-zinc-100" />
-
                   <div className="mt-4 h-12 animate-pulse rounded-2xl bg-zinc-100" />
                 </div>
               )
@@ -1687,7 +1550,6 @@ function AdminSecretChallenge() {
               className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-black px-6 py-3 text-sm font-black text-white"
             >
               <Plus size={17} />
-
               إنشاء أول تحدي
             </button>
           </div>
@@ -1848,7 +1710,6 @@ function AdminSecretChallenge() {
                         <Pencil
                           size={13}
                         />
-
                         تعديل
                       </button>
 
