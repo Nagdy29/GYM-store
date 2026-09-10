@@ -655,7 +655,7 @@ function ProductDetails() {
                   <p className="mt-1 text-xs leading-6 text-zinc-400">
                     الشحن مجاني للطلبات بقيمة
                     1500 جنيه أو أكثر. أقل من
-                    كده تكلفة الشحن 60 جنيه.
+                    كده تكلفة الشحن عل حسب المحافظه  .
                   </p>
                 </div>
               </div>
